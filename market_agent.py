@@ -159,6 +159,24 @@ def run_backtest(data, strategy_function):
 
 import math
 
+
+def calculate_drawdown(equity_curve):
+    drawdowns = []
+    peak = equity_curve[0]
+
+    for value in equity_curve:
+        if value > peak:
+            peak = value
+
+        drawdown = (value - peak) / peak
+        drawdowns.append(drawdown)
+
+    return drawdowns
+
+
+
+
+
 def calculate_sharpe(equity_curve):
     returns = []
 
@@ -204,6 +222,8 @@ if __name__ == "__main__":
     adaptive_equity, adaptive_final = run_backtest(data, adaptive_strategy)
     adaptive_sharpe = calculate_sharpe(adaptive_equity)
 
+
+
     # Buy & Hold
     first_price = data["Close"].iloc[0]
     last_price = data["Close"].iloc[-1]
@@ -214,6 +234,11 @@ if __name__ == "__main__":
     for i in range(20, len(data)):
         price = data["Close"].iloc[i]
         bh_equity.append(bh_shares * price)
+
+        ma_drawdown = calculate_drawdown(ma_equity)
+        mr_drawdown = calculate_drawdown(mr_equity)
+        adaptive_drawdown = calculate_drawdown(adaptive_equity)
+        bh_drawdown = calculate_drawdown(bh_equity)
 
     bh_sharpe = calculate_sharpe(bh_equity)
 
@@ -234,14 +259,32 @@ if __name__ == "__main__":
     print("Buy & Hold Sharpe:", round(bh_sharpe, 2))
 
     # Plot
-    plt.figure()
-    plt.plot(ma_equity, label="Moving Average")
-    plt.plot(mr_equity, label="Mean Reversion")
-    plt.plot(adaptive_equity, label="Adaptive Strategy")
-    plt.plot(bh_equity, label="Buy & Hold")
-    plt.axhline(y=10000, linestyle="--", label="Starting Value")
-    plt.title("Strategy Comparison")
-    plt.xlabel("Days")
-    plt.ylabel("Portfolio Value")
-    plt.legend()
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+
+    # --- Equity Curves ---
+    ax1.plot(ma_equity, label="Moving Average", linewidth=3, color="blue")
+    ax1.plot(mr_equity, label="Mean Reversion", linewidth=3, color="red", linestyle="--")
+    ax1.plot(adaptive_equity, label="Adaptive Strategy", linewidth=3, color="purple")
+    ax1.plot(bh_equity, label="Buy & Hold", linewidth=3, color="green")
+
+    ax1.axhline(y=10000, linestyle="--", linewidth=2, color="black", alpha=0.6)
+
+    ax1.set_title("Equity Curve")
+    ax1.set_ylabel("Portfolio Value")
+    ax1.legend()
+    ax1.grid(True)
+
+    # --- Drawdown Curves ---
+    ax2.plot(ma_drawdown, label="MA Drawdown", linewidth=2, color="blue")
+    ax2.plot(mr_drawdown, label="MR Drawdown", linewidth=2, color="red", linestyle="--")
+    ax2.plot(adaptive_drawdown, label="Adaptive Drawdown", linewidth=2, color="purple")
+    ax2.plot(bh_drawdown, label="Buy & Hold Drawdown", linewidth=2, color="green")
+
+    ax2.set_title("Drawdown")
+    ax2.set_ylabel("Drawdown %")
+    ax2.set_xlabel("Days")
+    ax2.legend()
+    ax2.grid(True)
+
+    plt.tight_layout()
     plt.show()
