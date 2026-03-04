@@ -228,6 +228,16 @@ def trade_statistics(profits):
 
     return wins, losses, win_rate, avg_profit
 
+def profit_factor(profits):
+
+    gross_profit = sum(p for p in profits if p > 0)
+    gross_loss = abs(sum(p for p in profits if p < 0))
+
+    if gross_loss == 0:
+        return 0
+
+    return gross_profit / gross_loss
+
 
 if __name__ == "__main__":
 
@@ -295,18 +305,27 @@ if __name__ == "__main__":
     ma_wins, ma_losses, ma_wr, ma_avg = trade_statistics(ma_profits)
     mr_wins, mr_losses, mr_wr, mr_avg = trade_statistics(mr_profits)
     ad_wins, ad_losses, ad_wr, ad_avg = trade_statistics(ad_profits)
+    ma_pf = profit_factor(ma_profits)
+    mr_pf = profit_factor(mr_profits)
+    ad_pf = profit_factor(ad_profits)
 
-    print("Moving Average Final Value:", round(ma_final, 2))
-    print("Moving Average Sharpe:", round(ma_sharpe, 2))
-    print("Moving Average Max Drawdown:", round(ma_max_dd * 100, 2), "%")
+    print("\nMoving Average")
+    print("Trades:", len(ma_profits))
+    print("Win Rate:", round(ma_wr * 100, 1), "%")
+    print("Avg Trade:", round(ma_avg, 2))
+    print("Profit Factor:", round(ma_pf, 2))
 
-    print("\nMean Reversion Final Value:", round(mr_final, 2))
-    print("Mean Reversion Sharpe:", round(mr_sharpe, 2))
-    print("Mean Reversion Max Drawdown:", round(mr_max_dd * 100, 2), "%")
+    print("\nMean Reversion")
+    print("Trades:", len(mr_profits))
+    print("Win Rate:", round(mr_wr * 100, 1), "%")
+    print("Avg Trade:", round(mr_avg, 2))
+    print("Profit Factor:", round(mr_pf, 2))
 
-    print("\nAdaptive Strategy Final Value:", round(adaptive_final, 2))
-    print("Adaptive Strategy Sharpe:", round(adaptive_sharpe, 2))
-    print("Adaptive Max Drawdown:", round(adaptive_max_dd * 100, 2), "%")
+    print("\nAdaptive")
+    print("Trades:", len(ad_profits))
+    print("Win Rate:", round(ad_wr * 100, 1), "%")
+    print("Avg Trade:", round(ad_avg, 2))
+    print("Profit Factor:", round(ad_pf, 2))
 
     print("\nBuy & Hold Final Value:", round(bh_final, 2))
     print("Buy & Hold Sharpe:", round(bh_sharpe, 2))
