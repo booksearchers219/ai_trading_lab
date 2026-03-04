@@ -118,6 +118,8 @@ def run_backtest(data, strategy_function):
     cash = 10000
     shares = 0
     equity_curve = []
+    buy_points = []
+    sell_points = []
     hold_days = 0
     state = {}
 
@@ -142,6 +144,7 @@ def run_backtest(data, strategy_function):
                 cost = trade_value * 0.001
                 cash -= trade_value + cost
                 hold_days = 5
+                buy_points.append(len(equity_curve))
 
         # SELL from signal
         elif decision == "SELL" and shares > 0:
@@ -150,6 +153,7 @@ def run_backtest(data, strategy_function):
             cash += trade_value - cost
             shares = 0
             hold_days = 0
+            sell_points.append(len(equity_curve))
 
         # Timed exit
         elif shares > 0 and hold_days == 0:
@@ -165,7 +169,7 @@ def run_backtest(data, strategy_function):
     final_price = data["Close"].iloc[-1]
     final_value = cash + (shares * final_price)
 
-    return equity_curve, final_value
+    return equity_curve, final_value, buy_points, sell_points
 
 import math
 
@@ -246,13 +250,13 @@ if __name__ == "__main__":
     print(f"\nRunning Strategy Comparison on {ticker}\n")
 
     # Run Strategies
-    ma_equity, ma_final = run_backtest(data, analyze_market)
+    ma_equity, ma_final, ma_buys, ma_sells = run_backtest(data, analyze_market)
     ma_sharpe = calculate_sharpe(ma_equity)
 
-    mr_equity, mr_final = run_backtest(data, mean_reversion_strategy)
+    mr_equity, mr_final, mr_buys, mr_sells = run_backtest(data, mean_reversion_strategy)
     mr_sharpe = calculate_sharpe(mr_equity)
 
-    adaptive_equity, adaptive_final = run_backtest(data, adaptive_strategy)
+    adaptive_equity, adaptive_final, ad_buys, ad_sells = run_backtest(data, adaptive_strategy)
     adaptive_sharpe = calculate_sharpe(adaptive_equity)
 
 
@@ -306,6 +310,8 @@ if __name__ == "__main__":
     ax1.set_ylabel("Portfolio Value")
     ax1.legend()
     ax1.grid(True)
+    ax1.scatter(ma_buys, [ma_equity[i] for i in ma_buys], marker="^", color="green", s=80)
+    ax1.scatter(ma_sells, [ma_equity[i] for i in ma_sells], marker="v", color="red", s=80)
 
     # --- Drawdown Curves ---
     ax2.plot(ma_drawdown, label="MA Drawdown", linewidth=2, color="blue")
