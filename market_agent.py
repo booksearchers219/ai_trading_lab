@@ -187,6 +187,9 @@ def calculate_drawdown(equity_curve):
 
     return drawdowns
 
+def max_drawdown(drawdowns):
+    return min(drawdowns)
+
 
 def calculate_sharpe(equity_curve):
 
@@ -283,6 +286,10 @@ if __name__ == "__main__":
     mr_drawdown = calculate_drawdown(mr_equity)
     adaptive_drawdown = calculate_drawdown(adaptive_equity)
     bh_drawdown = calculate_drawdown(bh_equity)
+    ma_max_dd = max_drawdown(ma_drawdown)
+    mr_max_dd = max_drawdown(mr_drawdown)
+    adaptive_max_dd = max_drawdown(adaptive_drawdown)
+    bh_max_dd = max_drawdown(bh_drawdown)
 
     # Trade stats
     ma_wins, ma_losses, ma_wr, ma_avg = trade_statistics(ma_profits)
@@ -291,15 +298,19 @@ if __name__ == "__main__":
 
     print("Moving Average Final Value:", round(ma_final, 2))
     print("Moving Average Sharpe:", round(ma_sharpe, 2))
+    print("Moving Average Max Drawdown:", round(ma_max_dd * 100, 2), "%")
 
     print("\nMean Reversion Final Value:", round(mr_final, 2))
     print("Mean Reversion Sharpe:", round(mr_sharpe, 2))
+    print("Mean Reversion Max Drawdown:", round(mr_max_dd * 100, 2), "%")
 
     print("\nAdaptive Strategy Final Value:", round(adaptive_final, 2))
     print("Adaptive Strategy Sharpe:", round(adaptive_sharpe, 2))
+    print("Adaptive Max Drawdown:", round(adaptive_max_dd * 100, 2), "%")
 
     print("\nBuy & Hold Final Value:", round(bh_final, 2))
     print("Buy & Hold Sharpe:", round(bh_sharpe, 2))
+    print("Buy & Hold Max Drawdown:", round(bh_max_dd * 100, 2), "%")
 
     print("\nTrade Statistics")
 
