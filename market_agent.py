@@ -2,6 +2,8 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import math
+import matplotlib.ticker as mtick
+
 
 plt.style.use("ggplot")
 
@@ -272,6 +274,11 @@ if __name__ == "__main__":
 
         results = []
 
+        # Leaderboard counters
+        ma_wins = 0
+        mr_wins = 0
+        ad_wins = 0
+
         for ticker in ticker_list:
             print(f"\nTesting {ticker}")
 
@@ -295,19 +302,35 @@ if __name__ == "__main__":
 
             if best_value == r[1]:
                 winner = "MA"
+                ma_wins += 1
             elif best_value == r[2]:
                 winner = "MR"
+                mr_wins += 1
             else:
                 winner = "AD"
+                ad_wins += 1
 
             print(
                 f"{r[0]:<5} | "
-                f"MA: {round(r[1], 2):>8} "
-                f"MR: {round(r[2], 2):>8} "
-                f"AD: {round(r[3], 2):>8} "
+                f"MA: {'$' + format(r[1], ',.2f'):>12} "
+                f"MR: {'$' + format(r[2], ',.2f'):>12} "
+                f"AD: {'$' + format(r[3], ',.2f'):>12} "
                 f"| Winner: {winner}"
             )
+
+        print("\nStrategy Leaderboard\n")
+
+        print(f"{'Moving Average':<18}: {ma_wins}")
+        print(f"{'Mean Reversion':<18}: {mr_wins}")
+        print(f"{'Adaptive':<18}: {ad_wins}")
+
         exit()
+
+        print("\nStrategy Leaderboard\n")
+
+        print("Moving Average wins:", ma_wins)
+        print("Mean Reversion wins:", mr_wins)
+        print("Adaptive wins:", ad_wins)
 
     if user_input.strip() == "":
         ticker = default_ticker
@@ -446,6 +469,18 @@ if __name__ == "__main__":
     price_series = data["Close"].iloc[50:].reset_index(drop=True)
 
     ax0.plot(price_series, color="black", linewidth=2, label="Price")
+
+    # Moving Average trades on price
+    ax0.scatter(ma_buys, [price_series[i] for i in ma_buys], marker="^", color="green", s=80)
+    ax0.scatter(ma_sells, [price_series[i] for i in ma_sells], marker="v", color="red", s=80)
+
+    # Mean Reversion trades
+    ax0.scatter(mr_buys, [price_series[i] for i in mr_buys], marker="^", color="orange", s=80)
+    ax0.scatter(mr_sells, [price_series[i] for i in mr_sells], marker="v", color="darkorange", s=80)
+
+    # Adaptive trades
+    ax0.scatter(ad_buys, [price_series[i] for i in ad_buys], marker="^", color="purple", s=80)
+    ax0.scatter(ad_sells, [price_series[i] for i in ad_sells], marker="v", color="magenta", s=80)
     ax0.set_title(f"{ticker} Price", fontsize=15, fontweight="bold")
     ax0.legend(fontsize=12)
     ax0.grid(True)
@@ -472,6 +507,7 @@ if __name__ == "__main__":
     ax1.set_title(f"{ticker} Strategy Comparison", fontsize=16, fontweight="bold")
     ax1.legend(fontsize=12)
     ax1.grid(True)
+    ax1.yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
 
     ax2.plot(ma_drawdown, label="MA Drawdown", linewidth=3, color="blue")
     ax2.plot(mr_drawdown, label="MR Drawdown", linewidth=3, color="red", linestyle="--")
