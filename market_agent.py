@@ -4,6 +4,27 @@ from datetime import datetime, timedelta
 import math
 import matplotlib.ticker as mtick
 import csv
+import pandas as pd
+
+def get_sp500_tickers():
+
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+
+    tables = pd.read_html(
+        url,
+        storage_options={
+            "User-Agent": "Mozilla/5.0"
+        }
+    )
+
+    df = tables[0]
+
+    tickers = df["Symbol"].tolist()
+
+    # Fix tickers like BRK.B -> BRK-B for Yahoo Finance
+    tickers = [t.replace(".", "-") for t in tickers]
+
+    return tickers
 
 plt.style.use("ggplot")
 
@@ -244,7 +265,7 @@ def profit_factor(profits):
 if __name__ == "__main__":
 
     default_ticker = "TSLA"
-    ticker_list = ["TSLA", "SPY", "AAPL", "NVDA", "QQQ"]
+    ticker_list = get_sp500_tickers()[:50]
 
     user_input = input(f'Current stock is "{default_ticker}". Press Enter to keep it, or type a new ticker: ')
 
@@ -279,8 +300,8 @@ if __name__ == "__main__":
         mr_wins = 0
         ad_wins = 0
 
-        for ticker in ticker_list:
-            print(f"\nTesting {ticker}")
+        for i, ticker in enumerate(ticker_list, 1):
+            print(f"\nTesting {ticker} ({i}/{len(ticker_list)})")
 
             data = get_recent_data(ticker, months)
 
