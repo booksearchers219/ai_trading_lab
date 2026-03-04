@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import math
 import matplotlib.ticker as mtick
-
+import csv
 
 plt.style.use("ggplot")
 
@@ -293,6 +293,26 @@ if __name__ == "__main__":
             ad_sharpe = calculate_sharpe(ad_equity)
 
             results.append((ticker, ma_final, mr_final, ad_final, ma_sharpe, mr_sharpe, ad_sharpe))
+
+        # Save results to CSV
+        with open("strategy_results.csv", "w", newline="") as file:
+            writer = csv.writer(file)
+
+            writer.writerow([
+                "Ticker",
+                "MA_Final",
+                "MR_Final",
+                "AD_Final",
+                "MA_Sharpe",
+                "MR_Sharpe",
+                "AD_Sharpe"
+            ])
+
+            for row in results:
+                writer.writerow(row)
+
+        print("\nResults saved to strategy_results.csv\n")
+
 
         print("\nStrategy Results Summary\n")
 
