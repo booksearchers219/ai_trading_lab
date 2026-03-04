@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import math
 
+plt.style.use("ggplot")
 
 def get_recent_data(ticker, months):
     stock = yf.Ticker(ticker)
@@ -271,7 +272,7 @@ if __name__ == "__main__":
     bh_final = bh_shares * last_price
 
     bh_equity = []
-    for i in range(20, len(data)):
+    for i in range(50, len(data)):
         price = data["Close"].iloc[i]
         bh_equity.append(bh_shares * price)
 
@@ -330,18 +331,21 @@ if __name__ == "__main__":
     ax1.scatter(ma_buys, [ma_equity[i] for i in ma_buys], marker="^", color="green", s=80)
     ax1.scatter(ma_sells, [ma_equity[i] for i in ma_sells], marker="v", color="red", s=80)
 
-    ax1.set_title(f"{ticker} Strategy Comparison")
-    ax1.legend()
+    ax1.set_title(f"{ticker} Strategy Comparison", fontsize=16, fontweight="bold")
+    ax1.legend(fontsize=12)
     ax1.grid(True)
 
     ax2.plot(ma_drawdown, label="MA Drawdown", linewidth=3, color="blue")
     ax2.plot(mr_drawdown, label="MR Drawdown", linewidth=3, color="red", linestyle="--")
     ax2.plot(adaptive_drawdown, label="Adaptive Drawdown", linewidth=3, color="purple")
     ax2.plot(bh_drawdown, label="Buy & Hold Drawdown", linewidth=3, color="green")
+
     ax2.axhline(y=0, color="black", linewidth=2, linestyle="--", alpha=0.5)
-    ax2.set_title("Drawdown")
-    ax2.legend()
+
+    ax2.set_title("Drawdown", fontsize=15, fontweight="bold")
+    ax2.legend(fontsize=12)
     ax2.grid(True)
 
-    plt.tight_layout()
+    fig.suptitle(f"{ticker} Strategy Backtest", fontsize=18, fontweight="bold")
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.show()
