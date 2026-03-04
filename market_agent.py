@@ -1,9 +1,19 @@
 import yfinance as yf
 import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
 
-def get_recent_data(ticker):
+
+def get_recent_data(ticker, months):
     stock = yf.Ticker(ticker)
-    data = stock.history(period="6mo")
+
+    end_date = datetime.today()
+    start_date = end_date - timedelta(days=months * 30)
+
+    data = stock.history(start=start_date, end=end_date)
+
+    print("\nBacktest Window")
+    print(start_date.strftime("%Y-%m-%d"), "→", end_date.strftime("%Y-%m-%d"))
+
     return data
 
 def analyze_market(data):
@@ -211,11 +221,27 @@ if __name__ == "__main__":
 
     user_input = input(f'Current stock is "{default_ticker}". Press Enter to keep it, or type a new ticker: ')
 
+    print("\nSelect backtest window:")
+    print("1) 6 months")
+    print("2) 1 year")
+    print("3) 2 years")
+
+    choice = input("Enter choice (default = 1): ").strip()
+
+    if choice == "2":
+        months = 12
+    elif choice == "3":
+        months = 24
+    else:
+        months = 6
+
+
+
     if user_input.strip() == "":
         ticker = default_ticker
     else:
         ticker = user_input.strip().upper()
-    data = get_recent_data(ticker)
+    data = get_recent_data(ticker, months)
 
     print(f"\nRunning Strategy Comparison on {ticker}\n")
 
