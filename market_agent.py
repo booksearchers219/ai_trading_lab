@@ -5,6 +5,7 @@ import math
 import matplotlib.ticker as mtick
 import csv
 import pandas as pd
+import numpy as np
 
 def get_sp500_tickers():
 
@@ -265,7 +266,7 @@ def profit_factor(profits):
 if __name__ == "__main__":
 
     default_ticker = "TSLA"
-    ticker_list = get_sp500_tickers()[:50]
+    ticker_list = get_sp500_tickers()[:10]
 
     user_input = input(f'Current stock is "{default_ticker}". Press Enter to keep it, or type a new ticker: ')
 
@@ -294,6 +295,8 @@ if __name__ == "__main__":
     if batch_mode == "y":
 
         results = []
+        heatmap_data = []
+        heatmap_labels = []
 
         # Leaderboard counters
         ma_wins = 0
@@ -351,6 +354,18 @@ if __name__ == "__main__":
                 winner = "AD"
                 ad_wins += 1
 
+            row = [0, 0, 0]
+
+            if winner == "MA":
+                row[0] = 1
+            elif winner == "MR":
+                row[1] = 1
+            else:
+                row[2] = 1
+
+            heatmap_data.append(row)
+            heatmap_labels.append(r[0])
+
             print(
                 f"{r[0]:<5} | "
                 f"MA: {'$' + format(r[1], ',.2f'):>12} "
@@ -364,6 +379,25 @@ if __name__ == "__main__":
         print(f"{'Moving Average':<18}: {ma_wins}")
         print(f"{'Mean Reversion':<18}: {mr_wins}")
         print(f"{'Adaptive':<18}: {ad_wins}")
+
+        heatmap_array = np.array(heatmap_data)
+
+        plt.figure(figsize=(8, 6))
+        plt.imshow(heatmap_array, cmap="coolwarm", aspect="auto")
+
+        plt.yticks(range(len(heatmap_labels)), heatmap_labels)
+        plt.xticks([0, 1, 2], ["MA", "MR", "AD"])
+
+        plt.title("Strategy Winners Heatmap", fontsize=16, fontweight="bold")
+        plt.xlabel("Strategy")
+        plt.ylabel("Ticker")
+
+        plt.colorbar(label="Winner")
+
+        plt.tight_layout()
+        plt.show()
+
+
 
         exit()
 
