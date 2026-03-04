@@ -207,7 +207,14 @@ def calculate_sharpe(equity_curve):
 
 
 if __name__ == "__main__":
-    ticker = "SPY"
+    default_ticker = "TSLA"
+
+    user_input = input(f'Current stock is "{default_ticker}". Press Enter to keep it, or type a new ticker: ')
+
+    if user_input.strip() == "":
+        ticker = default_ticker
+    else:
+        ticker = user_input.strip().upper()
     data = get_recent_data(ticker)
 
     print(f"\nRunning Strategy Comparison on {ticker}\n")
@@ -269,7 +276,7 @@ if __name__ == "__main__":
 
     ax1.axhline(y=10000, linestyle="--", linewidth=2, color="black", alpha=0.6)
 
-    ax1.set_title("Equity Curve")
+    ax1.set_title(f"{ticker} Strategy Comparison - Equity Curve")
     ax1.set_ylabel("Portfolio Value")
     ax1.legend()
     ax1.grid(True)
@@ -280,7 +287,7 @@ if __name__ == "__main__":
     ax2.plot(adaptive_drawdown, label="Adaptive Drawdown", linewidth=2, color="purple")
     ax2.plot(bh_drawdown, label="Buy & Hold Drawdown", linewidth=2, color="green")
 
-    ax2.set_title("Drawdown")
+    ax2.set_title(f"{ticker} Drawdown")
     ax2.set_ylabel("Drawdown %")
     ax2.set_xlabel("Days")
     ax2.legend()
