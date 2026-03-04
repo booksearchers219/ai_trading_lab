@@ -441,7 +441,14 @@ if __name__ == "__main__":
     print("Avg Trade:", round(ad_avg, 2))
 
     # Plot
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+    fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(10, 10), sharex=True)
+
+    price_series = data["Close"].iloc[50:].reset_index(drop=True)
+
+    ax0.plot(price_series, color="black", linewidth=2, label="Price")
+    ax0.set_title(f"{ticker} Price", fontsize=15, fontweight="bold")
+    ax0.legend(fontsize=12)
+    ax0.grid(True)
 
     ax1.plot(ma_equity, label="Moving Average", linewidth=3)
     ax1.plot(mr_equity, label="Mean Reversion", linewidth=3, linestyle="--")
