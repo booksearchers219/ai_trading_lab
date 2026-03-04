@@ -242,6 +242,7 @@ def profit_factor(profits):
 if __name__ == "__main__":
 
     default_ticker = "TSLA"
+    ticker_list = ["TSLA", "SPY", "AAPL", "NVDA", "QQQ"]
 
     user_input = input(f'Current stock is "{default_ticker}". Press Enter to keep it, or type a new ticker: ')
 
@@ -264,7 +265,43 @@ if __name__ == "__main__":
     else:
         ticker = user_input.strip().upper()
 
-    data = get_recent_data(ticker, months)
+    print("\nRun multi-ticker test? (y/n)")
+    batch_mode = input("> ").lower()
+
+    if batch_mode == "y":
+
+        results = []
+
+        for ticker in ticker_list:
+            print(f"\nTesting {ticker}")
+
+            data = get_recent_data(ticker, months)
+
+            ma_equity, ma_final, _, _, ma_profits = run_backtest(data, analyze_market)
+            mr_equity, mr_final, _, _, mr_profits = run_backtest(data, mean_reversion_strategy)
+            ad_equity, ad_final, _, _, ad_profits = run_backtest(data, adaptive_strategy)
+
+            ma_sharpe = calculate_sharpe(ma_equity)
+            mr_sharpe = calculate_sharpe(mr_equity)
+            ad_sharpe = calculate_sharpe(ad_equity)
+
+            results.append((ticker, ma_final, mr_final, ad_final, ma_sharpe, mr_sharpe, ad_sharpe))
+
+        print("\nStrategy Results Summary\n")
+
+        for r in results:
+            print(
+                f"{r[0]} | "
+                f"MA: {round(r[1], 2)} "
+                f"MR: {round(r[2], 2)} "
+                f"AD: {round(r[3], 2)} "
+                f"| Sharpe -> "
+                f"MA {round(r[4], 2)} "
+                f"MR {round(r[5], 2)} "
+                f"AD {round(r[6], 2)}"
+            )
+
+        exit()
 
     print(f"\nRunning Strategy Comparison on {ticker}\n")
 
