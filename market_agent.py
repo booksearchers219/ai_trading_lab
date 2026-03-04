@@ -19,14 +19,14 @@ def get_recent_data(ticker, months):
     return data
 
 
-def analyze_market(data):
+def analyze_market(data, short_window=5, long_window=20):
     closes = data["Close"]
 
     if len(closes) < 20:
         return "HOLD"
 
-    short_ma = closes.rolling(window=5).mean().iloc[-1]
-    long_ma = closes.rolling(window=20).mean().iloc[-1]
+    short_ma = closes.rolling(window=short_window).mean().iloc[-1]
+    long_ma = closes.rolling(window=long_window).mean().iloc[-1]
 
     if short_ma > long_ma:
         return "BUY"
@@ -290,18 +290,31 @@ if __name__ == "__main__":
         print("\nStrategy Results Summary\n")
 
         for r in results:
-            print(
-                f"{r[0]} | "
-                f"MA: {round(r[1], 2)} "
-                f"MR: {round(r[2], 2)} "
-                f"AD: {round(r[3], 2)} "
-                f"| Sharpe -> "
-                f"MA {round(r[4], 2)} "
-                f"MR {round(r[5], 2)} "
-                f"AD {round(r[6], 2)}"
-            )
 
+            best_value = max(r[1], r[2], r[3])
+
+            if best_value == r[1]:
+                winner = "MA"
+            elif best_value == r[2]:
+                winner = "MR"
+            else:
+                winner = "AD"
+
+            print(
+                f"{r[0]:<5} | "
+                f"MA: {round(r[1], 2):>8} "
+                f"MR: {round(r[2], 2):>8} "
+                f"AD: {round(r[3], 2):>8} "
+                f"| Winner: {winner}"
+            )
         exit()
+
+    if user_input.strip() == "":
+        ticker = default_ticker
+    else:
+        ticker = user_input.strip().upper()
+
+    data = get_recent_data(ticker, months)
 
     print(f"\nRunning Strategy Comparison on {ticker}\n")
 
@@ -327,6 +340,48 @@ if __name__ == "__main__":
         bh_equity.append(bh_shares * price)
 
     bh_sharpe = calculate_sharpe(bh_equity)
+
+    print("\nRun Moving Average parameter sweep? (y/n)")
+    sweep = input("> ").lower()
+
+    if sweep == "y":
+
+        short_windows = [5, 10, 20]
+        long_windows = [20, 50, 100]
+
+        results = []
+
+        for s in short_windows:
+            for l in long_windows:
+
+                if s >= l:
+                    continue
+
+
+                def ma_strategy(data, short=s, long=l):
+                    return analyze_market(data, short, long)
+
+
+                equity, final_value, _, _, _ = run_backtest(data, ma_strategy)
+                sharpe = calculate_sharpe(equity)
+
+                results.append((s, l, final_value, sharpe))
+
+        print("\nMA Parameter Sweep Results\n")
+
+        results.sort(key=lambda x: x[3], reverse=True)
+
+        for r in results:
+            short_ma = r[0]
+            long_ma = r[1]
+            final_val = r[2]
+            sharpe = r[3]
+
+            print(
+                f"MA {short_ma}/{long_ma} | "
+                f"Final: {round(final_val, 2):>10} | "
+                f"Sharpe: {round(sharpe, 2):>6}"
+            )
 
     # Drawdowns
     ma_drawdown = calculate_drawdown(ma_equity)
@@ -368,7 +423,7 @@ if __name__ == "__main__":
     print("Buy & Hold Sharpe:", round(bh_sharpe, 2))
     print("Buy & Hold Max Drawdown:", round(bh_max_dd * 100, 2), "%")
 
-    print("\nTrade Statistics")
+   # print("\nTrade Statistics")
 
     print("\nMoving Average")
     print("Trades:", len(ma_profits))
@@ -395,8 +450,17 @@ if __name__ == "__main__":
 
     ax1.axhline(y=10000, linestyle="--", color="black")
 
+    # Moving Average trades
     ax1.scatter(ma_buys, [ma_equity[i] for i in ma_buys], marker="^", color="green", s=80)
     ax1.scatter(ma_sells, [ma_equity[i] for i in ma_sells], marker="v", color="red", s=80)
+
+    # Mean Reversion trades
+    ax1.scatter(mr_buys, [mr_equity[i] for i in mr_buys], marker="^", color="orange", s=80)
+    ax1.scatter(mr_sells, [mr_equity[i] for i in mr_sells], marker="v", color="darkorange", s=80)
+
+    # Adaptive trades
+    ax1.scatter(ad_buys, [adaptive_equity[i] for i in ad_buys], marker="^", color="purple", s=80)
+    ax1.scatter(ad_sells, [adaptive_equity[i] for i in ad_sells], marker="v", color="magenta", s=80)
 
     ax1.set_title(f"{ticker} Strategy Comparison", fontsize=16, fontweight="bold")
     ax1.legend(fontsize=12)
