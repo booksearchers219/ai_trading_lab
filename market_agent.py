@@ -52,6 +52,8 @@ def process_ticker(args):
 
     regime = detect_regime(data)
 
+
+
     ma_equity, ma_final, _, _, _ = run_backtest(data, analyze_market)
     mr_equity, mr_final, _, _, _ = run_backtest(data, mean_reversion_strategy)
     ad_equity, ad_final, _, _, _ = run_backtest(data, adaptive_strategy)
@@ -60,7 +62,19 @@ def process_ticker(args):
     mr_sharpe = calculate_sharpe(mr_equity)
     ad_sharpe = calculate_sharpe(ad_equity)
 
-    return (ticker, regime, ma_final, mr_final, ad_final, ma_sharpe, mr_sharpe, ad_sharpe)
+    return (
+        ticker,
+        regime,
+        ma_final,
+        mr_final,
+        ad_final,
+        ma_sharpe,
+        mr_sharpe,
+        ad_sharpe,
+        ma_equity,
+        mr_equity,
+        ad_equity
+    )
 
 
 if __name__ == "__main__":
@@ -150,14 +164,31 @@ if __name__ == "__main__":
 
             results = pool.map(process_ticker, job_args)
 
-            ma_portfolio = []
-            mr_portfolio = []
-            ad_portfolio = []
-
             for r in results:
+
+                regime = r[1]
+
+                if regime == "TRENDING":
+                    trend_total += 1
+                else:
+                    side_total += 1
+
                 ma_portfolio.append(r[2])
                 mr_portfolio.append(r[3])
                 ad_portfolio.append(r[4])
+
+                ma_equity = r[8]
+                mr_equity = r[9]
+                ad_equity = r[10]
+
+                if ma_portfolio_curve is None:
+                    ma_portfolio_curve = ma_equity
+                    mr_portfolio_curve = mr_equity
+                    ad_portfolio_curve = ad_equity
+                else:
+                    ma_portfolio_curve = [a + b for a, b in zip(ma_portfolio_curve, ma_equity)]
+                    mr_portfolio_curve = [a + b for a, b in zip(mr_portfolio_curve, mr_equity)]
+                    ad_portfolio_curve = [a + b for a, b in zip(ad_portfolio_curve, ad_equity)]
 
             pool.close()
             pool.join()
@@ -185,6 +216,11 @@ if __name__ == "__main__":
                 ad_sharpe = calculate_sharpe(ad_equity)
 
                 results.append((ticker, regime, ma_final, mr_final, ad_final, ma_sharpe, mr_sharpe, ad_sharpe))
+
+                if regime == "TRENDING":
+                    trend_total += 1
+                else:
+                    side_total += 1
 
                 if ma_portfolio_curve is None:
                     ma_portfolio_curve = ma_equity
@@ -353,11 +389,21 @@ if __name__ == "__main__":
         heatmap_array = np.array(heatmap_data[:top_n])
         heatmap_labels = heatmap_labels[:top_n]
 
+        print("Curve lengths:",
+              len(ma_portfolio_curve) if ma_portfolio_curve else 0,
+              len(mr_portfolio_curve) if mr_portfolio_curve else 0,
+              len(ad_portfolio_curve) if ad_portfolio_curve else 0)
+
+        print("Regime totals:", trend_total, side_total)
+
         save_heatmap(heatmap_array, heatmap_labels, args, timestamp)
-        save_portfolio_chart(ma_portfolio_curve, mr_portfolio_curve, ad_portfolio_curve, args, timestamp)
+
         save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp)
+
         save_sharpe_leaderboard(results, args, timestamp)
+
         save_regime_distribution(trend_total, side_total, args, timestamp)
+
         save_trade_opportunities(results, args, timestamp)
 
 
@@ -433,6 +479,13 @@ if __name__ == "__main__":
                 f"Final: {round(final_val, 2):>10} | "
                 f"Sharpe: {round(sharpe, 2):>6}"
             )
+
+            regime = r[1]
+
+            if regime == "TRENDING":
+                trend_total += 1
+            else:
+                side_total += 1
 
             print("\nTop 10 Moving Average Strategies\n")
 
