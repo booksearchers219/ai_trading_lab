@@ -268,7 +268,7 @@ if __name__ == "__main__":
     default_ticker = "TSLA"
     all_tickers = get_sp500_tickers()
 
-    TEST_LIMIT = 10  # change to 20 or None for full list
+    TEST_LIMIT = 100  # change to 20 or None for full list
 
     if TEST_LIMIT:
         ticker_list = all_tickers[:TEST_LIMIT]
@@ -344,10 +344,14 @@ if __name__ == "__main__":
 
         print("\nResults saved to strategy_results.csv\n")
 
+        # Sort results by best Sharpe ratio
+        results.sort(key=lambda x: max(x[4], x[5], x[6]), reverse=True)
+
+        top_results = results[:20]
 
         print("\nStrategy Results Summary\n")
 
-        for r in results:
+        for r in top_results:
 
             best_value = max(r[1], r[2], r[3])
 
@@ -387,9 +391,12 @@ if __name__ == "__main__":
         print(f"{'Mean Reversion':<18}: {mr_wins}")
         print(f"{'Adaptive':<18}: {ad_wins}")
 
-        heatmap_array = np.array(heatmap_data)
+        top_n = 20
 
-        plt.figure(figsize=(8, 6))
+        heatmap_array = np.array(heatmap_data[:top_n])
+        heatmap_labels = heatmap_labels[:top_n]
+
+        plt.figure(figsize=(8, 10))
         plt.imshow(heatmap_array, cmap="coolwarm", aspect="auto")
 
         plt.yticks(range(len(heatmap_labels)), heatmap_labels)
