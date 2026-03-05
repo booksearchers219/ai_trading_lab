@@ -7,7 +7,7 @@ from visualization import *
 import argparse
 import multiprocessing as mp
 import os
-from charts import save_heatmap, save_portfolio_chart
+from charts import save_heatmap, save_portfolio_chart, save_strategy_dominance
 from datetime import datetime
 
 
@@ -115,7 +115,7 @@ if __name__ == "__main__":
         if args.report:
             os.makedirs("reports", exist_ok=True)
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         results = []
         heatmap_data = []
@@ -262,6 +262,8 @@ if __name__ == "__main__":
         print(f"{'Mean Reversion':<18}: {mr_wins}")
         print(f"{'Adaptive':<18}: {ad_wins}")
 
+        save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp)
+
         print("\nRegime Performance\n")
 
         print("TRENDING markets")
@@ -334,8 +336,7 @@ if __name__ == "__main__":
         heatmap_array = np.array(heatmap_data[:top_n])
         heatmap_labels = heatmap_labels[:top_n]
 
-        save_heatmap(heatmap_array, heatmap_labels, args)
-
+        save_heatmap(heatmap_array, heatmap_labels, args, timestamp)
 
 
 
@@ -630,6 +631,6 @@ if __name__ == "__main__":
         ad_returns
     ])
 
-    save_heatmap(heatmap_array, heatmap_labels, args)
+    save_heatmap(heatmap_array, heatmap_labels, args, timestamp)
 
-    save_portfolio_chart(ma_portfolio, mr_portfolio, ad_portfolio, args)
+    save_portfolio_chart(ma_portfolio, mr_portfolio, ad_portfolio, args, timestamp)
