@@ -8,6 +8,9 @@ import argparse
 import multiprocessing as mp
 import os
 from charts import save_heatmap, save_portfolio_chart
+from datetime import datetime
+
+
 
 plt.style.use("ggplot")
 
@@ -112,6 +115,8 @@ if __name__ == "__main__":
         if args.report:
             os.makedirs("reports", exist_ok=True)
 
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
         results = []
         heatmap_data = []
         heatmap_labels = []
@@ -181,7 +186,7 @@ if __name__ == "__main__":
         csv_file = "strategy_results.csv"
 
         if args.report:
-            csv_file = "reports/scan_results.csv"
+            csv_file = f"reports/{timestamp}_scan_results.csv"
 
         with open(csv_file, "w", newline="") as file:
             writer = csv.writer(file)

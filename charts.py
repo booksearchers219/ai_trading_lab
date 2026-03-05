@@ -16,7 +16,7 @@ def save_heatmap(heatmap_array, heatmap_labels, args):
     plt.tight_layout()
 
     if args.report:
-        plt.savefig("reports/strategy_heatmap.png", dpi=300)
+        plt.savefig(f"reports/{timestamp}_heatmap.png", dpi=300)
     else:
         plt.show()
 
@@ -44,7 +44,7 @@ def save_portfolio_chart(ma_portfolio, mr_portfolio, ad_portfolio, args):
     plt.grid(True)
 
     if args.report:
-        plt.savefig("reports/portfolio_performance.png", dpi=300)
+        plt.savefig(f"reports/{timestamp}_portfolio.png", dpi=300)
     else:
         plt.show()
 
