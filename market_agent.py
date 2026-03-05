@@ -7,7 +7,7 @@ from visualization import *
 import argparse
 import multiprocessing as mp
 import os
-from charts import save_heatmap, save_portfolio_chart, save_strategy_dominance
+from charts import save_heatmap, save_portfolio_chart, save_strategy_dominance, save_sharpe_leaderboard, save_regime_distribution, save_trade_opportunities
 from datetime import datetime
 
 
@@ -137,6 +137,9 @@ if __name__ == "__main__":
         trend_counts = {"MA": 0, "MR": 0, "AD": 0}
         side_counts = {"MA": 0, "MR": 0, "AD": 0}
 
+        trend_total = 0
+        side_total = 0
+
         if args.parallel:
 
             print("\nRunning parallel scan...\n")
@@ -167,6 +170,11 @@ if __name__ == "__main__":
                 data = get_recent_data(ticker, months)
 
                 regime = detect_regime(data)
+
+                if regime == "TRENDING":
+                    trend_total += 1
+                else:
+                    side_total += 1
 
                 ma_equity, ma_final, _, _, _ = run_backtest(data, analyze_market)
                 mr_equity, mr_final, _, _, _ = run_backtest(data, mean_reversion_strategy)
@@ -346,7 +354,11 @@ if __name__ == "__main__":
         heatmap_labels = heatmap_labels[:top_n]
 
         save_heatmap(heatmap_array, heatmap_labels, args, timestamp)
-
+        save_portfolio_chart(ma_portfolio_curve, mr_portfolio_curve, ad_portfolio_curve, args, timestamp)
+        save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp)
+        save_sharpe_leaderboard(results, args, timestamp)
+        save_regime_distribution(trend_total, side_total, args, timestamp)
+        save_trade_opportunities(results, args, timestamp)
 
 
     ticker = args.ticker.upper()
