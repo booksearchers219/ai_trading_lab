@@ -1,271 +1,44 @@
-import yfinance as yf
 import matplotlib.pyplot as plt
-from datetime import datetime, timedelta
-import math
 import matplotlib.ticker as mtick
 import csv
-import pandas as pd
-import numpy as np
+from data_utils import *
+from strategies import *
+from backtest_utils import *
+from visualization import *
 
-def get_sp500_tickers():
 
-    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-
-    tables = pd.read_html(
-        url,
-        storage_options={
-            "User-Agent": "Mozilla/5.0"
-        }
-    )
-
-    df = tables[0]
-
-    tickers = df["Symbol"].tolist()
-
-    # Fix tickers like BRK.B -> BRK-B for Yahoo Finance
-    tickers = [t.replace(".", "-") for t in tickers]
-
-    return tickers
 
 plt.style.use("ggplot")
-
-def get_recent_data(ticker, months):
-    stock = yf.Ticker(ticker)
-
-    end_date = datetime.today()
-    start_date = end_date - timedelta(days=months * 30)
-
-    data = stock.history(start=start_date, end=end_date)
-
-    print("\nBacktest Window")
-    print(start_date.strftime("%Y-%m-%d"), "→", end_date.strftime("%Y-%m-%d"))
-
-    return data
-
-
-def analyze_market(data, short_window=5, long_window=20):
-    closes = data["Close"]
-
-    if len(closes) < 20:
-        return "HOLD"
-
-    short_ma = closes.rolling(window=short_window).mean().iloc[-1]
-    long_ma = closes.rolling(window=long_window).mean().iloc[-1]
-
-    if short_ma > long_ma:
-        return "BUY"
-    elif short_ma < long_ma:
-        return "SELL"
-    else:
-        return "HOLD"
-
-
-def mean_reversion_strategy(data):
-    closes = data["Close"]
-
-    if len(closes) < 6:
-        return "HOLD"
-
-    five_day_return = (closes.iloc[-1] - closes.iloc[-6]) / closes.iloc[-6]
-
-    if five_day_return < -0.03:
-        return "BUY"
-    else:
-        return "HOLD"
-
-
-def detect_regime(data):
-    closes = data["Close"]
-
-    if len(closes) < 50:
-        return "SIDEWAYS"
-
-    ma20 = closes.rolling(window=20).mean().iloc[-1]
-    ma50 = closes.rolling(window=50).mean().iloc[-1]
-
-    returns = closes.pct_change()
-    recent_vol = returns.rolling(window=20).std().iloc[-1]
-
-    vol_threshold = 0.02
-
-    if ma20 > ma50 and recent_vol > vol_threshold:
-        return "TRENDING"
-    else:
-        return "SIDEWAYS"
-
-
-def adaptive_strategy(data, state):
-    regime = detect_regime(data)
-
-    if "current_regime" not in state:
-        state["current_regime"] = regime
-        state["regime_count"] = 1
-    else:
-        if regime == state["current_regime"]:
-            state["regime_count"] += 1
-        else:
-            state["regime_count"] = 1
-
-        if state["regime_count"] >= 5:
-            state["current_regime"] = regime
-
-    if state["current_regime"] == "TRENDING":
-        return analyze_market(data)
-    else:
-        return mean_reversion_strategy(data)
-
-
-def run_backtest(data, strategy_function):
-
-    cash = 10000
-    shares = 0
-    entry_price = None
-
-    equity_curve = []
-    buy_points = []
-    sell_points = []
-    trade_profits = []
-
-    hold_days = 0
-    state = {}
-
-    for i in range(50, len(data)):
-
-        recent_data = data.iloc[:i]
-
-        if strategy_function.__name__ == "adaptive_strategy":
-            decision = strategy_function(recent_data, state)
-        else:
-            decision = strategy_function(recent_data)
-
-        current_price = data["Close"].iloc[i]
-
-        portfolio_value = cash + (shares * current_price)
-        equity_curve.append(portfolio_value)
-
-        # BUY
-        if decision == "BUY" and shares == 0:
-
-            investment_amount = cash * 0.5
-            shares = int(investment_amount / current_price)
-
-            if shares > 0:
-
-                trade_value = shares * current_price
-                cost = trade_value * 0.001
-
-                cash -= trade_value + cost
-                entry_price = current_price
-
-                hold_days = 5
-                buy_points.append(len(equity_curve))
-
-        # SELL from signal
-        elif decision == "SELL" and shares > 0:
-
-            trade_value = shares * current_price
-            cost = trade_value * 0.001
-
-            profit = (current_price - entry_price) * shares
-            trade_profits.append(profit)
-
-            cash += trade_value - cost
-            shares = 0
-            hold_days = 0
-
-            sell_points.append(len(equity_curve))
-
-        # Timed exit
-        elif shares > 0 and hold_days == 0:
-
-            trade_value = shares * current_price
-            cost = trade_value * 0.001
-
-            profit = (current_price - entry_price) * shares
-            trade_profits.append(profit)
-
-            cash += trade_value - cost
-            shares = 0
-
-        if shares > 0 and hold_days > 0:
-            hold_days -= 1
-
-    final_price = data["Close"].iloc[-1]
-    final_value = cash + (shares * final_price)
-
-    return equity_curve, final_value, buy_points, sell_points, trade_profits
-
-
-def calculate_drawdown(equity_curve):
-
-    drawdowns = []
-    peak = equity_curve[0]
-
-    for value in equity_curve:
-
-        if value > peak:
-            peak = value
-
-        drawdown = (value - peak) / peak
-        drawdowns.append(drawdown)
-
-    return drawdowns
 
 def max_drawdown(drawdowns):
     return min(drawdowns)
 
-def safe_points(points, series):
-    valid = [i for i in points if i < len(series)]
-    values = [series[i] for i in valid]
-    return valid, values
+def rolling_sharpe(equity_curve, window=20):
 
+    sharpes = []
 
-def calculate_sharpe(equity_curve):
+    for i in range(len(equity_curve)):
 
-    returns = []
+        if i < window:
+            sharpes.append(0)
+            continue
 
-    for i in range(1, len(equity_curve)):
-        daily_return = (equity_curve[i] - equity_curve[i - 1]) / equity_curve[i - 1]
-        returns.append(daily_return)
+        segment = equity_curve[i-window:i]
 
-    if len(returns) == 0:
-        return 0
+        returns = [
+            (segment[j] - segment[j-1]) / segment[j-1]
+            for j in range(1, len(segment))
+        ]
 
-    mean_return = sum(returns) / len(returns)
+        mean = np.mean(returns)
+        std = np.std(returns)
 
-    variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
-    std_dev = math.sqrt(variance)
+        if std == 0:
+            sharpes.append(0)
+        else:
+            sharpes.append((mean/std) * np.sqrt(252))
 
-    if std_dev == 0:
-        return 0
-
-    sharpe = (mean_return / std_dev) * math.sqrt(252)
-
-    return sharpe
-
-
-def trade_statistics(profits):
-
-    if len(profits) == 0:
-        return 0, 0, 0, 0
-
-    wins = sum(1 for p in profits if p > 0)
-    losses = sum(1 for p in profits if p <= 0)
-
-    win_rate = wins / len(profits)
-    avg_profit = sum(profits) / len(profits)
-
-    return wins, losses, win_rate, avg_profit
-
-def profit_factor(profits):
-
-    gross_profit = sum(p for p in profits if p > 0)
-    gross_loss = abs(sum(p for p in profits if p < 0))
-
-    if gross_loss == 0:
-        return 0
-
-    return gross_profit / gross_loss
+    return sharpes
 
 
 if __name__ == "__main__":
@@ -637,6 +410,10 @@ if __name__ == "__main__":
     adaptive_max_dd = max_drawdown(adaptive_drawdown)
     bh_max_dd = max_drawdown(bh_drawdown)
 
+    ma_roll = rolling_sharpe(ma_equity)
+    mr_roll = rolling_sharpe(mr_equity)
+    ad_roll = rolling_sharpe(adaptive_equity)
+
     # Trade stats
     ma_wins, ma_losses, ma_wr, ma_avg = trade_statistics(ma_profits)
     mr_wins, mr_losses, mr_wr, mr_avg = trade_statistics(mr_profits)
@@ -685,11 +462,22 @@ if __name__ == "__main__":
     print("Avg Trade:", round(ad_avg, 2))
 
     # Plot
-    fig, (ax0, ax1, ax2, ax3, ax4) = plt.subplots(5, 1, figsize=(10, 14), sharex=False)
+    fig, (ax0, ax1, ax2, ax3, ax4, ax5) = plt.subplots(6, 1, figsize=(10, 16), sharex=False)
 
     price_series = data["Close"].iloc[50:].reset_index(drop=True)
 
+    regimes = regime_history(data)[50:]
+
     ax0.plot(price_series, color="black", linewidth=2, label="Price")
+
+    # Regime shading
+    for i in range(len(regimes) - 1):
+
+        if regimes[i] == "TRENDING":
+            ax0.axvspan(i, i + 1, color="green", alpha=0.08)
+
+        else:
+            ax0.axvspan(i, i + 1, color="yellow", alpha=0.08)
 
 
 
@@ -794,6 +582,46 @@ if __name__ == "__main__":
     ax4.set_title("Win/Loss Trade Count", fontsize=15, fontweight="bold")
     ax4.set_ylabel("Number of Trades")
     ax4.grid(True)
+
+    # Rolling Sharpe Ratio
+    ax5.plot(ma_roll, label="MA Sharpe", linewidth=2)
+    ax5.plot(mr_roll, label="MR Sharpe", linewidth=2)
+    ax5.plot(ad_roll, label="Adaptive Sharpe", linewidth=2)
+
+    ax5.axhline(y=0, color="black", linestyle="--", linewidth=1)
+
+    ax5.set_title("Rolling Sharpe Ratio", fontsize=15, fontweight="bold")
+    ax5.set_ylabel("Sharpe")
+    ax5.set_xlabel("Backtest Days")
+
+    ax5.legend(fontsize=11)
+    ax5.grid(True)
+
+    # Strategy returns for correlation
+    ma_returns = np.diff(ma_equity) / ma_equity[:-1]
+    mr_returns = np.diff(mr_equity) / mr_equity[:-1]
+    ad_returns = np.diff(adaptive_equity) / adaptive_equity[:-1]
+
+    corr_matrix = np.corrcoef([
+        ma_returns,
+        mr_returns,
+        ad_returns
+    ])
+
+    plt.figure(figsize=(5, 4))
+
+    plt.imshow(corr_matrix, cmap="coolwarm", vmin=-1, vmax=1)
+
+    labels = ["MA", "MR", "AD"]
+
+    plt.xticks(range(3), labels)
+    plt.yticks(range(3), labels)
+
+    plt.title("Strategy Correlation Matrix", fontsize=14, fontweight="bold")
+
+    plt.colorbar(label="Correlation")
+
+    plt.tight_layout()
 
     fig.suptitle(f"{ticker} Strategy Backtest", fontsize=18, fontweight="bold")
     plt.tight_layout(rect=[0, 0, 1, 0.97])
