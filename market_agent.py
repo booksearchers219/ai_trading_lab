@@ -84,6 +84,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--parallel", action="store_true",
                         help="Run multi-ticker scan in parallel")
+    parser.add_argument("--sweep", action="store_true",
+                        help="Run moving average parameter sweep")
 
     args = parser.parse_args()
 
@@ -346,11 +348,7 @@ if __name__ == "__main__":
 
         exit()
 
-
-    if user_input.strip() == "":
-        ticker = default_ticker
-    else:
-        ticker = user_input.strip().upper()
+    ticker = args.ticker.upper()
 
     data = get_recent_data(ticker, months)
 
@@ -379,10 +377,7 @@ if __name__ == "__main__":
 
     bh_sharpe = calculate_sharpe(bh_equity)
 
-    print("\nRun Moving Average parameter sweep? (y/n)")
-    sweep = input("> ").lower()
-
-    if sweep == "y":
+    if args.sweep:
 
         short_windows = range(5, 31, 5)
         long_windows = range(20, 201, 20)
