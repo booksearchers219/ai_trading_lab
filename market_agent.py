@@ -266,7 +266,14 @@ def profit_factor(profits):
 if __name__ == "__main__":
 
     default_ticker = "TSLA"
-    ticker_list = get_sp500_tickers()[:10]
+    all_tickers = get_sp500_tickers()
+
+    TEST_LIMIT = 10  # change to 20 or None for full list
+
+    if TEST_LIMIT:
+        ticker_list = all_tickers[:TEST_LIMIT]
+    else:
+        ticker_list = all_tickers
 
     user_input = input(f'Current stock is "{default_ticker}". Press Enter to keep it, or type a new ticker: ')
 
@@ -397,15 +404,8 @@ if __name__ == "__main__":
         plt.tight_layout()
         plt.show()
 
-
-
         exit()
 
-        print("\nStrategy Leaderboard\n")
-
-        print("Moving Average wins:", ma_wins)
-        print("Mean Reversion wins:", mr_wins)
-        print("Adaptive wins:", ad_wins)
 
     if user_input.strip() == "":
         ticker = default_ticker
@@ -444,10 +444,11 @@ if __name__ == "__main__":
 
     if sweep == "y":
 
-        short_windows = [5, 10, 20]
-        long_windows = [20, 50, 100]
+        short_windows = range(5, 31, 5)
+        long_windows = range(20, 201, 20)
 
         results = []
+        top_results = []
 
         for s in short_windows:
             for l in long_windows:
@@ -464,10 +465,14 @@ if __name__ == "__main__":
                 sharpe = calculate_sharpe(equity)
 
                 results.append((s, l, final_value, sharpe))
+                top_results.append((s, l, final_value, sharpe))
+
+
 
         print("\nMA Parameter Sweep Results\n")
 
         results.sort(key=lambda x: x[3], reverse=True)
+        top_results.sort(key=lambda x: x[3], reverse=True)
 
         for r in results:
             short_ma = r[0]
@@ -480,6 +485,15 @@ if __name__ == "__main__":
                 f"Final: {round(final_val, 2):>10} | "
                 f"Sharpe: {round(sharpe, 2):>6}"
             )
+
+            print("\nTop 10 Moving Average Strategies\n")
+
+            for r in top_results[:10]:
+                print(
+                    f"MA {r[0]}/{r[1]} | "
+                    f"Final: ${r[2]:,.2f} | "
+                    f"Sharpe: {r[3]:.2f}"
+                )
 
     # Drawdowns
     ma_drawdown = calculate_drawdown(ma_equity)
