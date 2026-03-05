@@ -685,45 +685,13 @@ if __name__ == "__main__":
     print("Avg Trade:", round(ad_avg, 2))
 
     # Plot
-    fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(10, 10), sharex=True)
+    fig, (ax0, ax1, ax2, ax3, ax4) = plt.subplots(5, 1, figsize=(10, 14), sharex=False)
 
     price_series = data["Close"].iloc[50:].reset_index(drop=True)
 
     ax0.plot(price_series, color="black", linewidth=2, label="Price")
 
-    # Moving Average trades on price
-    ax0.scatter(
-        [i for i in ma_buys if i < len(price_series)],
-        [price_series[i] for i in ma_buys if i < len(price_series)],
-        marker="^",
-        color="green",
-        s=80
-    )
 
-    ax0.scatter(
-        [i for i in ma_sells if i < len(price_series)],
-        [price_series[i] for i in ma_sells if i < len(price_series)],
-        marker="v",
-        color="red",
-        s=80
-    )
-
-    # Mean Reversion trades
-    ax0.scatter(
-        [i for i in mr_buys if i < len(price_series)],
-        [price_series[i] for i in mr_buys if i < len(price_series)],
-        marker="^",
-        color="orange",
-        s=80
-    )
-
-    ax0.scatter(
-        [i for i in mr_sells if i < len(price_series)],
-        [price_series[i] for i in mr_sells if i < len(price_series)],
-        marker="v",
-        color="darkorange",
-        s=80
-    )
 
     # Moving Average trades
     x, y = safe_points(ma_buys, price_series)
@@ -758,16 +726,25 @@ if __name__ == "__main__":
     ax1.axhline(y=10000, linestyle="--", color="black")
 
     # Moving Average trades
-    ax1.scatter(ma_buys, [ma_equity[i] for i in ma_buys], marker="^", color="green", s=80)
-    ax1.scatter(ma_sells, [ma_equity[i] for i in ma_sells], marker="v", color="red", s=80)
+    x, y = safe_points(ma_buys, ma_equity)
+    ax1.scatter(x, y, marker="^", color="green", s=80)
+
+    x, y = safe_points(ma_sells, ma_equity)
+    ax1.scatter(x, y, marker="v", color="red", s=80)
 
     # Mean Reversion trades
-    ax1.scatter(mr_buys, [mr_equity[i] for i in mr_buys], marker="^", color="orange", s=80)
-    ax1.scatter(mr_sells, [mr_equity[i] for i in mr_sells], marker="v", color="darkorange", s=80)
+    x, y = safe_points(mr_buys, mr_equity)
+    ax1.scatter(x, y, marker="^", color="orange", s=80)
+
+    x, y = safe_points(mr_sells, mr_equity)
+    ax1.scatter(x, y, marker="v", color="darkorange", s=80)
 
     # Adaptive trades
-    ax1.scatter(ad_buys, [adaptive_equity[i] for i in ad_buys], marker="^", color="purple", s=80)
-    ax1.scatter(ad_sells, [adaptive_equity[i] for i in ad_sells], marker="v", color="magenta", s=80)
+    x, y = safe_points(ad_buys, adaptive_equity)
+    ax1.scatter(x, y, marker="^", color="purple", s=80)
+
+    x, y = safe_points(ad_sells, adaptive_equity)
+    ax1.scatter(x, y, marker="v", color="magenta", s=80)
 
     ax1.set_title(f"{ticker} Strategy Comparison", fontsize=16, fontweight="bold")
     ax1.legend(fontsize=12)
@@ -785,6 +762,41 @@ if __name__ == "__main__":
     ax2.legend(fontsize=12)
     ax2.grid(True)
 
+    # Trade Profit Distribution
+    ax3.hist(ma_profits, bins=20, alpha=0.6, label="MA")
+    ax3.hist(mr_profits, bins=20, alpha=0.6, label="MR")
+    ax3.hist(ad_profits, bins=20, alpha=0.6, label="Adaptive")
+
+    ax3.set_title("Trade Profit Distribution", fontsize=15, fontweight="bold")
+    ax3.set_xlabel("Profit per Trade")
+    ax3.set_ylabel("Number of Trades")
+
+    ax3.legend(fontsize=12)
+    ax3.grid(True)
+
+    # Win/Loss Distribution
+    ma_wins = sum(1 for p in ma_profits if p > 0)
+    ma_losses = sum(1 for p in ma_profits if p <= 0)
+
+    mr_wins = sum(1 for p in mr_profits if p > 0)
+    mr_losses = sum(1 for p in mr_profits if p <= 0)
+
+    ad_wins = sum(1 for p in ad_profits if p > 0)
+    ad_losses = sum(1 for p in ad_profits if p <= 0)
+
+    labels = ["MA Wins", "MA Losses", "MR Wins", "MR Losses", "AD Wins", "AD Losses"]
+    values = [ma_wins, ma_losses, mr_wins, mr_losses, ad_wins, ad_losses]
+
+    colors = ["green", "red", "orange", "darkorange", "purple", "magenta"]
+
+    ax4.bar(labels, values, color=colors)
+
+    ax4.set_title("Win/Loss Trade Count", fontsize=15, fontweight="bold")
+    ax4.set_ylabel("Number of Trades")
+    ax4.grid(True)
+
     fig.suptitle(f"{ticker} Strategy Backtest", fontsize=18, fontweight="bold")
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.tight_layout(rect=[0, 0, 1, 0.97])
     plt.show()
+
+    print("Histogram trades:", len(ma_profits), len(mr_profits), len(ad_profits))
