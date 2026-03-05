@@ -5,6 +5,7 @@ from data_utils import *
 from strategies import *
 from backtest_utils import *
 from visualization import *
+import argparse
 
 
 
@@ -43,39 +44,41 @@ def rolling_sharpe(equity_curve, window=20):
 
 if __name__ == "__main__":
 
-    default_ticker = "TSLA"
-    all_tickers = get_sp500_tickers()
+    parser = argparse.ArgumentParser(description="AI Trading Lab")
 
-    TEST_LIMIT = 30   # change to 20 or None for full list
+    parser.add_argument("--ticker", type=str, default="TSLA",
+                        help="Stock ticker to analyze")
 
-    if TEST_LIMIT:
-        ticker_list = all_tickers[:TEST_LIMIT]
-    else:
-        ticker_list = all_tickers
+    parser.add_argument("--window", type=int, default=6,
+                        help="Backtest window in months")
 
-    user_input = input(f'Current stock is "{default_ticker}". Press Enter to keep it, or type a new ticker: ')
+    parser.add_argument("--scan", type=str,
+                        help="Run multi-ticker scan (example: sp500)")
 
-    print("\nSelect backtest window:")
-    print("1) 6 months")
-    print("2) 1 year")
-    print("3) 2 years")
+    parser.add_argument("--limit", type=int, default=30,
+                        help="Limit number of tickers during scan")
 
-    choice = input("Enter choice (default = 1): ").strip()
+    parser.add_argument("--strategy", type=str,
+                        help="Run single strategy: ma, mr, adaptive")
 
-    if choice == "2":
-        months = 12
-    elif choice == "3":
-        months = 24
-    else:
-        months = 6
+    args = parser.parse_args()
 
-    if user_input.strip() == "":
-        ticker = default_ticker
-    else:
-        ticker = user_input.strip().upper()
+    if args.scan == "sp500":
 
-    print("\nRun multi-ticker test? (y/n)")
-    batch_mode = input("> ").lower()
+        all_tickers = get_sp500_tickers()
+
+        if args.limit:
+            ticker_list = all_tickers[:args.limit]
+        else:
+            ticker_list = all_tickers
+
+    ticker = args.ticker.upper()
+
+    months = args.window
+
+    ticker = args.ticker.upper()
+
+    batch_mode = "y" if args.scan else "n"
 
     if batch_mode == "y":
 
