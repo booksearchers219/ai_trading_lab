@@ -23,21 +23,21 @@ def save_heatmap(heatmap_array, heatmap_labels, args, timestamp):
     plt.close()
 
 
-def save_portfolio_chart(ma_portfolio, mr_portfolio, ad_portfolio, args, timestamp):
+def save_portfolio_chart(ma_curve, mr_curve, ad_curve, args, timestamp):
 
     plt.figure(figsize=(10,6))
 
-    if len(ma_portfolio) > 0:
-        plt.plot(ma_portfolio, label="MA Final Values", linewidth=3)
+    if ma_curve:
+        plt.plot(ma_curve, label="MA Portfolio", linewidth=3)
 
-    if len(mr_portfolio) > 0:
-        plt.plot(mr_portfolio, label="MR Final Values", linewidth=3)
+    if mr_curve:
+        plt.plot(mr_curve, label="MR Portfolio", linewidth=3)
 
-    if len(ad_portfolio) > 0:
-        plt.plot(ad_portfolio, label="Adaptive Final Values", linewidth=3)
+    if ad_curve:
+        plt.plot(ad_curve, label="Adaptive Portfolio", linewidth=3)
 
     plt.title("Strategy Portfolio Performance (All Tickers)", fontsize=16, fontweight="bold")
-    plt.xlabel("Ticker Number")
+    plt.xlabel("Backtest Day")
     plt.ylabel("Portfolio Value")
 
     plt.legend()

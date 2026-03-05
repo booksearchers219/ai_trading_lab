@@ -178,6 +178,15 @@ if __name__ == "__main__":
 
                 results.append((ticker, regime, ma_final, mr_final, ad_final, ma_sharpe, mr_sharpe, ad_sharpe))
 
+                if ma_portfolio_curve is None:
+                    ma_portfolio_curve = ma_equity
+                    mr_portfolio_curve = mr_equity
+                    ad_portfolio_curve = ad_equity
+                else:
+                    ma_portfolio_curve = [a + b for a, b in zip(ma_portfolio_curve, ma_equity)]
+                    mr_portfolio_curve = [a + b for a, b in zip(mr_portfolio_curve, mr_equity)]
+                    ad_portfolio_curve = [a + b for a, b in zip(ad_portfolio_curve, ad_equity)]
+
                 ma_portfolio.append(ma_final)
                 mr_portfolio.append(mr_final)
                 ad_portfolio.append(ad_final)
@@ -633,4 +642,4 @@ if __name__ == "__main__":
 
     save_heatmap(heatmap_array, heatmap_labels, args, timestamp)
 
-    save_portfolio_chart(ma_portfolio, mr_portfolio, ad_portfolio, args, timestamp)
+    save_portfolio_chart(ma_portfolio_curve, mr_portfolio_curve, ad_portfolio_curve, args, timestamp)
