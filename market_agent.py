@@ -268,7 +268,7 @@ if __name__ == "__main__":
     default_ticker = "TSLA"
     all_tickers = get_sp500_tickers()
 
-    TEST_LIMIT = 100   # change to 20 or None for full list
+    TEST_LIMIT = 30   # change to 20 or None for full list
 
     if TEST_LIMIT:
         ticker_list = all_tickers[:TEST_LIMIT]
@@ -305,25 +305,38 @@ if __name__ == "__main__":
         heatmap_data = []
         heatmap_labels = []
 
+        ma_portfolio = []
+        mr_portfolio = []
+        ad_portfolio = []
+
         # Leaderboard counters
         ma_wins = 0
         mr_wins = 0
         ad_wins = 0
+
+        trend_counts = {"MA": 0, "MR": 0, "AD": 0}
+        side_counts = {"MA": 0, "MR": 0, "AD": 0}
 
         for i, ticker in enumerate(ticker_list, 1):
             print(f"\nTesting {ticker} ({i}/{len(ticker_list)})")
 
             data = get_recent_data(ticker, months)
 
+            regime = detect_regime(data)
+
             ma_equity, ma_final, _, _, ma_profits = run_backtest(data, analyze_market)
             mr_equity, mr_final, _, _, mr_profits = run_backtest(data, mean_reversion_strategy)
             ad_equity, ad_final, _, _, ad_profits = run_backtest(data, adaptive_strategy)
+
+            ma_portfolio.append(ma_equity[-1])
+            mr_portfolio.append(mr_equity[-1])
+            ad_portfolio.append(ad_equity[-1])
 
             ma_sharpe = calculate_sharpe(ma_equity)
             mr_sharpe = calculate_sharpe(mr_equity)
             ad_sharpe = calculate_sharpe(ad_equity)
 
-            results.append((ticker, ma_final, mr_final, ad_final, ma_sharpe, mr_sharpe, ad_sharpe))
+            results.append((ticker, regime, ma_final, mr_final, ad_final, ma_sharpe, mr_sharpe, ad_sharpe))
 
         # Save results to CSV
         with open("strategy_results.csv", "w", newline="") as file:
@@ -345,7 +358,7 @@ if __name__ == "__main__":
         print("\nResults saved to strategy_results.csv\n")
 
         # Sort results by best Sharpe ratio
-        results.sort(key=lambda x: max(x[4], x[5], x[6]), reverse=True)
+        results.sort(key=lambda x: max(x[5], x[6], x[7]), reverse=True)
 
         top_results = results[:20]
 
@@ -353,17 +366,24 @@ if __name__ == "__main__":
 
         for r in top_results:
 
-            best_value = max(r[1], r[2], r[3])
+            best_value = max(r[2], r[3], r[4])
 
-            if best_value == r[1]:
+            if best_value == r[2]:
                 winner = "MA"
                 ma_wins += 1
-            elif best_value == r[2]:
+            elif best_value == r[3]:
                 winner = "MR"
                 mr_wins += 1
             else:
                 winner = "AD"
                 ad_wins += 1
+
+            regime = r[1]
+
+            if regime == "TRENDING":
+                trend_counts[winner] += 1
+            else:
+                side_counts[winner] += 1
 
             row = [0, 0, 0]
 
@@ -379,9 +399,10 @@ if __name__ == "__main__":
 
             print(
                 f"{r[0]:<5} | "
-                f"MA: {'$' + format(r[1], ',.2f'):>12} "
-                f"MR: {'$' + format(r[2], ',.2f'):>12} "
-                f"AD: {'$' + format(r[3], ',.2f'):>12} "
+                f"{r[1]:<8} | "
+                f"MA: {'$' + format(r[2], ',.2f'):>12} "
+                f"MR: {'$' + format(r[3], ',.2f'):>12} "
+                f"AD: {'$' + format(r[4], ',.2f'):>12} "
                 f"| Winner: {winner}"
             )
 
@@ -391,28 +412,74 @@ if __name__ == "__main__":
         print(f"{'Mean Reversion':<18}: {mr_wins}")
         print(f"{'Adaptive':<18}: {ad_wins}")
 
+        print("\nRegime Performance\n")
+
+        print("TRENDING markets")
+        print("MA wins:", trend_counts["MA"])
+        print("MR wins:", trend_counts["MR"])
+        print("AD wins:", trend_counts["AD"])
+
+        print("\nSIDEWAYS markets")
+        print("MA wins:", side_counts["MA"])
+        print("MR wins:", side_counts["MR"])
+        print("AD wins:", side_counts["AD"])
+
         print("\nTop Moving Average Strategies\n")
 
-        ma_rank = sorted(results, key=lambda x: x[4], reverse=True)[:10]
+        print("\nPortfolio Performance Across All Tickers\n")
+
+        print("MA total :", f"${sum(ma_portfolio):,.2f}")
+        print("MR total :", f"${sum(mr_portfolio):,.2f}")
+        print("AD total :", f"${sum(ad_portfolio):,.2f}")
+
+        ma_rank = sorted(results, key=lambda x: x[5], reverse=True)[:10]
 
         for r in ma_rank:
-            print(f"{r[0]:<6} Sharpe: {r[4]:>5.2f}")
+            print(f"{r[0]:<6} Sharpe: {r[5]:>5.2f}")
 
         print("\nTop Mean Reversion Strategies\n")
 
-        mr_rank = sorted(results, key=lambda x: x[5], reverse=True)[:10]
+        mr_rank = sorted(results, key=lambda x: x[6], reverse=True)[:10]
 
         for r in mr_rank:
-            print(f"{r[0]:<6} Sharpe: {r[5]:>5.2f}")
+            print(f"{r[0]:<6} Sharpe: {r[6]:>5.2f}")
 
         print("\nTop Adaptive Strategies\n")
 
-        ad_rank = sorted(results, key=lambda x: x[6], reverse=True)[:10]
+        ad_rank = sorted(results, key=lambda x: x[7], reverse=True)[:10]
 
         for r in ad_rank:
-            print(f"{r[0]:<6} Sharpe: {r[6]:>5.2f}")
+            print(f"{r[0]:<6} Sharpe: {r[7]:>5.2f}")
+
+        print("\nStrategy Stability Score\n")
+
+        ma_sharpes = [r[5] for r in results]
+        mr_sharpes = [r[6] for r in results]
+        ad_sharpes = [r[7] for r in results]
+
+        ma_mean = np.mean(ma_sharpes)
+        mr_mean = np.mean(mr_sharpes)
+        ad_mean = np.mean(ad_sharpes)
+
+        ma_std = np.std(ma_sharpes)
+        mr_std = np.std(mr_sharpes)
+        ad_std = np.std(ad_sharpes)
+
+        print(f"MA stability : {(ma_mean / ma_std) if ma_std else 0:.2f}")
+        print(f"MR stability : {(mr_mean / mr_std) if mr_std else 0:.2f}")
+        print(f"AD stability : {(ad_mean / ad_std) if ad_std else 0:.2f}")
 
         top_n = 20
+
+        print("TRENDING markets")
+        print("MA wins:", trend_counts["MA"])
+        print("MR wins:", trend_counts["MR"])
+        print("AD wins:", trend_counts["AD"])
+
+        print("\nSIDEWAYS markets")
+        print("MA wins:", side_counts["MA"])
+        print("MR wins:", side_counts["MR"])
+        print("AD wins:", side_counts["AD"])
 
         heatmap_array = np.array(heatmap_data[:top_n])
         heatmap_labels = heatmap_labels[:top_n]
@@ -522,6 +589,7 @@ if __name__ == "__main__":
                     f"Final: ${r[2]:,.2f} | "
                     f"Sharpe: {r[3]:.2f}"
                 )
+
 
     # Drawdowns
     ma_drawdown = calculate_drawdown(ma_equity)
