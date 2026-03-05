@@ -335,7 +335,8 @@ if __name__ == "__main__":
         plt.ylabel("Portfolio Value")
         plt.xlabel("Backtest Days")
 
-        plt.legend(fontsize=12)
+        if plt.gca().lines:
+            plt.legend(fontsize=12)
         plt.grid(True)
 
         plt.show()
