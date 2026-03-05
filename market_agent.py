@@ -6,6 +6,7 @@ from strategies import *
 from backtest_utils import *
 from visualization import *
 import argparse
+import multiprocessing as mp
 
 
 
@@ -41,6 +42,24 @@ def rolling_sharpe(equity_curve, window=20):
 
     return sharpes
 
+def process_ticker(args):
+
+    ticker, months = args
+
+    data = get_recent_data(ticker, months)
+
+    regime = detect_regime(data)
+
+    ma_equity, ma_final, _, _, _ = run_backtest(data, analyze_market)
+    mr_equity, mr_final, _, _, _ = run_backtest(data, mean_reversion_strategy)
+    ad_equity, ad_final, _, _, _ = run_backtest(data, adaptive_strategy)
+
+    ma_sharpe = calculate_sharpe(ma_equity)
+    mr_sharpe = calculate_sharpe(mr_equity)
+    ad_sharpe = calculate_sharpe(ad_equity)
+
+    return (ticker, regime, ma_final, mr_final, ad_final, ma_sharpe, mr_sharpe, ad_sharpe)
+
 
 if __name__ == "__main__":
 
@@ -60,6 +79,11 @@ if __name__ == "__main__":
 
     parser.add_argument("--strategy", type=str,
                         help="Run single strategy: ma, mr, adaptive")
+
+    parser.add_argument("--top", type=int, help="Show top N strategies by Sharpe")
+
+    parser.add_argument("--parallel", action="store_true",
+                        help="Run multi-ticker scan in parallel")
 
     args = parser.parse_args()
 
@@ -102,35 +126,37 @@ if __name__ == "__main__":
         trend_counts = {"MA": 0, "MR": 0, "AD": 0}
         side_counts = {"MA": 0, "MR": 0, "AD": 0}
 
-        for i, ticker in enumerate(ticker_list, 1):
-            print(f"\nTesting {ticker} ({i}/{len(ticker_list)})")
+        if args.parallel:
 
-            data = get_recent_data(ticker, months)
+            print("\nRunning parallel scan...\n")
 
-            regime = detect_regime(data)
+            pool = mp.Pool(mp.cpu_count())
 
-            ma_equity, ma_final, _, _, ma_profits = run_backtest(data, analyze_market)
-            mr_equity, mr_final, _, _, mr_profits = run_backtest(data, mean_reversion_strategy)
-            ad_equity, ad_final, _, _, ad_profits = run_backtest(data, adaptive_strategy)
+            job_args = [(ticker, months) for ticker in ticker_list]
 
-            if ma_portfolio_curve is None:
-                ma_portfolio_curve = np.array(ma_equity)
-                mr_portfolio_curve = np.array(mr_equity)
-                ad_portfolio_curve = np.array(ad_equity)
-            else:
-                ma_portfolio_curve += np.array(ma_equity)
-                mr_portfolio_curve += np.array(mr_equity)
-                ad_portfolio_curve += np.array(ad_equity)
+            results = pool.map(process_ticker, job_args)
 
-            ma_portfolio.append(ma_equity[-1])
-            mr_portfolio.append(mr_equity[-1])
-            ad_portfolio.append(ad_equity[-1])
+            pool.close()
+            pool.join()
 
-            ma_sharpe = calculate_sharpe(ma_equity)
-            mr_sharpe = calculate_sharpe(mr_equity)
-            ad_sharpe = calculate_sharpe(ad_equity)
+        else:
 
-            results.append((ticker, regime, ma_final, mr_final, ad_final, ma_sharpe, mr_sharpe, ad_sharpe))
+            for i, ticker in enumerate(ticker_list, 1):
+                print(f"\nTesting {ticker} ({i}/{len(ticker_list)})")
+
+                data = get_recent_data(ticker, months)
+
+                regime = detect_regime(data)
+
+                ma_equity, ma_final, _, _, _ = run_backtest(data, analyze_market)
+                mr_equity, mr_final, _, _, _ = run_backtest(data, mean_reversion_strategy)
+                ad_equity, ad_final, _, _, _ = run_backtest(data, adaptive_strategy)
+
+                ma_sharpe = calculate_sharpe(ma_equity)
+                mr_sharpe = calculate_sharpe(mr_equity)
+                ad_sharpe = calculate_sharpe(ad_equity)
+
+                results.append((ticker, regime, ma_final, mr_final, ad_final, ma_sharpe, mr_sharpe, ad_sharpe))
 
         # Save results to CSV
         with open("strategy_results.csv", "w", newline="") as file:
@@ -154,7 +180,8 @@ if __name__ == "__main__":
         # Sort results by best Sharpe ratio
         results.sort(key=lambda x: max(x[5], x[6], x[7]), reverse=True)
 
-        top_results = results[:20]
+        top_n = args.top if args.top else 20
+        top_results = results[:top_n]
 
         print("\nStrategy Results Summary\n")
 
@@ -263,7 +290,7 @@ if __name__ == "__main__":
         print(f"MR stability : {(mr_mean / mr_std) if mr_std else 0:.2f}")
         print(f"AD stability : {(ad_mean / ad_std) if ad_std else 0:.2f}")
 
-        top_n = 20
+        top_n = args.top if args.top else 20
 
         print("TRENDING markets")
         print("MA wins:", trend_counts["MA"])
@@ -294,9 +321,14 @@ if __name__ == "__main__":
 
         plt.figure(figsize=(10, 6))
 
-        plt.plot(ma_portfolio_curve, label="MA Portfolio", linewidth=3)
-        plt.plot(mr_portfolio_curve, label="MR Portfolio", linewidth=3)
-        plt.plot(ad_portfolio_curve, label="Adaptive Portfolio", linewidth=3)
+        if ma_portfolio_curve is not None:
+            plt.plot(ma_portfolio_curve, label="MA Portfolio", linewidth=3)
+
+        if mr_portfolio_curve is not None:
+            plt.plot(mr_portfolio_curve, label="MR Portfolio", linewidth=3)
+
+        if ad_portfolio_curve is not None:
+            plt.plot(ad_portfolio_curve, label="Adaptive Portfolio", linewidth=3)
 
         plt.title("Strategy Portfolio Performance (All Tickers)", fontsize=16, fontweight="bold")
 
