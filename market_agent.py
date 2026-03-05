@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import csv
 from data_utils import *
@@ -7,8 +6,8 @@ from backtest_utils import *
 from visualization import *
 import argparse
 import multiprocessing as mp
-
-
+import os
+from charts import save_heatmap, save_portfolio_chart
 
 plt.style.use("ggplot")
 
@@ -86,6 +85,8 @@ if __name__ == "__main__":
                         help="Run multi-ticker scan in parallel")
     parser.add_argument("--sweep", action="store_true",
                         help="Run moving average parameter sweep")
+    parser.add_argument("--report", action="store_true",
+                        help="Save scan results and charts to reports folder")
 
     args = parser.parse_args()
 
@@ -107,6 +108,9 @@ if __name__ == "__main__":
     batch_mode = "y" if args.scan else "n"
 
     if batch_mode == "y":
+
+        if args.report:
+            os.makedirs("reports", exist_ok=True)
 
         results = []
         heatmap_data = []
@@ -138,6 +142,15 @@ if __name__ == "__main__":
 
             results = pool.map(process_ticker, job_args)
 
+            ma_portfolio = []
+            mr_portfolio = []
+            ad_portfolio = []
+
+            for r in results:
+                ma_portfolio.append(r[2])
+                mr_portfolio.append(r[3])
+                ad_portfolio.append(r[4])
+
             pool.close()
             pool.join()
 
@@ -160,8 +173,17 @@ if __name__ == "__main__":
 
                 results.append((ticker, regime, ma_final, mr_final, ad_final, ma_sharpe, mr_sharpe, ad_sharpe))
 
+                ma_portfolio.append(ma_final)
+                mr_portfolio.append(mr_final)
+                ad_portfolio.append(ad_final)
+
         # Save results to CSV
-        with open("strategy_results.csv", "w", newline="") as file:
+        csv_file = "strategy_results.csv"
+
+        if args.report:
+            csv_file = "reports/scan_results.csv"
+
+        with open(csv_file, "w", newline="") as file:
             writer = csv.writer(file)
 
             writer.writerow([
@@ -307,46 +329,10 @@ if __name__ == "__main__":
         heatmap_array = np.array(heatmap_data[:top_n])
         heatmap_labels = heatmap_labels[:top_n]
 
-        plt.figure(figsize=(8, 10))
-        plt.imshow(heatmap_array, cmap="coolwarm", aspect="auto")
-
-        plt.yticks(range(len(heatmap_labels)), heatmap_labels)
-        plt.xticks([0, 1, 2], ["MA", "MR", "AD"])
-
-        plt.title("Strategy Winners Heatmap", fontsize=16, fontweight="bold")
-        plt.xlabel("Strategy")
-        plt.ylabel("Ticker")
-
-        plt.colorbar(label="Winner")
-
-        plt.tight_layout()
-
-        plt.figure(figsize=(10, 6))
-
-        if ma_portfolio_curve is not None:
-            plt.plot(ma_portfolio_curve, label="MA Portfolio", linewidth=3)
-
-        if mr_portfolio_curve is not None:
-            plt.plot(mr_portfolio_curve, label="MR Portfolio", linewidth=3)
-
-        if ad_portfolio_curve is not None:
-            plt.plot(ad_portfolio_curve, label="Adaptive Portfolio", linewidth=3)
-
-        plt.title("Strategy Portfolio Performance (All Tickers)", fontsize=16, fontweight="bold")
-
-        plt.ylabel("Portfolio Value")
-        plt.xlabel("Backtest Days")
-
-        if plt.gca().lines:
-            plt.legend(fontsize=12)
-        plt.grid(True)
-
-        plt.show()
+        save_heatmap(heatmap_array, heatmap_labels, args)
 
 
-        plt.show()
 
-        exit()
 
     ticker = args.ticker.upper()
 
@@ -639,23 +625,6 @@ if __name__ == "__main__":
         ad_returns
     ])
 
-    plt.figure(figsize=(5, 4))
+    save_heatmap(heatmap_array, heatmap_labels, args)
 
-    plt.imshow(corr_matrix, cmap="coolwarm", vmin=-1, vmax=1)
-
-    labels = ["MA", "MR", "AD"]
-
-    plt.xticks(range(3), labels)
-    plt.yticks(range(3), labels)
-
-    plt.title("Strategy Correlation Matrix", fontsize=14, fontweight="bold")
-
-    plt.colorbar(label="Correlation")
-
-    plt.tight_layout()
-
-    fig.suptitle(f"{ticker} Strategy Backtest", fontsize=18, fontweight="bold")
-    plt.tight_layout(rect=[0, 0, 1, 0.97])
-    plt.show()
-
-    print("Histogram trades:", len(ma_profits), len(mr_profits), len(ad_profits))
+    save_portfolio_chart(ma_portfolio, mr_portfolio, ad_portfolio, args)
