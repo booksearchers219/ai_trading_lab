@@ -268,7 +268,7 @@ if __name__ == "__main__":
     default_ticker = "TSLA"
     all_tickers = get_sp500_tickers()
 
-    TEST_LIMIT = 100  # change to 20 or None for full list
+    TEST_LIMIT = 100   # change to 20 or None for full list
 
     if TEST_LIMIT:
         ticker_list = all_tickers[:TEST_LIMIT]
@@ -390,6 +390,27 @@ if __name__ == "__main__":
         print(f"{'Moving Average':<18}: {ma_wins}")
         print(f"{'Mean Reversion':<18}: {mr_wins}")
         print(f"{'Adaptive':<18}: {ad_wins}")
+
+        print("\nTop Moving Average Strategies\n")
+
+        ma_rank = sorted(results, key=lambda x: x[4], reverse=True)[:10]
+
+        for r in ma_rank:
+            print(f"{r[0]:<6} Sharpe: {r[4]:>5.2f}")
+
+        print("\nTop Mean Reversion Strategies\n")
+
+        mr_rank = sorted(results, key=lambda x: x[5], reverse=True)[:10]
+
+        for r in mr_rank:
+            print(f"{r[0]:<6} Sharpe: {r[5]:>5.2f}")
+
+        print("\nTop Adaptive Strategies\n")
+
+        ad_rank = sorted(results, key=lambda x: x[6], reverse=True)[:10]
+
+        for r in ad_rank:
+            print(f"{r[0]:<6} Sharpe: {r[6]:>5.2f}")
 
         top_n = 20
 
