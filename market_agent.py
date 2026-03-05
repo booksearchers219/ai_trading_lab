@@ -214,6 +214,11 @@ def calculate_drawdown(equity_curve):
 def max_drawdown(drawdowns):
     return min(drawdowns)
 
+def safe_points(points, series):
+    valid = [i for i in points if i < len(series)]
+    values = [series[i] for i in valid]
+    return valid, values
+
 
 def calculate_sharpe(equity_curve):
 
@@ -309,6 +314,10 @@ if __name__ == "__main__":
         mr_portfolio = []
         ad_portfolio = []
 
+        ma_portfolio_curve = None
+        mr_portfolio_curve = None
+        ad_portfolio_curve = None
+
         # Leaderboard counters
         ma_wins = 0
         mr_wins = 0
@@ -327,6 +336,15 @@ if __name__ == "__main__":
             ma_equity, ma_final, _, _, ma_profits = run_backtest(data, analyze_market)
             mr_equity, mr_final, _, _, mr_profits = run_backtest(data, mean_reversion_strategy)
             ad_equity, ad_final, _, _, ad_profits = run_backtest(data, adaptive_strategy)
+
+            if ma_portfolio_curve is None:
+                ma_portfolio_curve = np.array(ma_equity)
+                mr_portfolio_curve = np.array(mr_equity)
+                ad_portfolio_curve = np.array(ad_equity)
+            else:
+                ma_portfolio_curve += np.array(ma_equity)
+                mr_portfolio_curve += np.array(mr_equity)
+                ad_portfolio_curve += np.array(ad_equity)
 
             ma_portfolio.append(ma_equity[-1])
             mr_portfolio.append(mr_equity[-1])
@@ -497,6 +515,24 @@ if __name__ == "__main__":
         plt.colorbar(label="Winner")
 
         plt.tight_layout()
+
+        plt.figure(figsize=(10, 6))
+
+        plt.plot(ma_portfolio_curve, label="MA Portfolio", linewidth=3)
+        plt.plot(mr_portfolio_curve, label="MR Portfolio", linewidth=3)
+        plt.plot(ad_portfolio_curve, label="Adaptive Portfolio", linewidth=3)
+
+        plt.title("Strategy Portfolio Performance (All Tickers)", fontsize=16, fontweight="bold")
+
+        plt.ylabel("Portfolio Value")
+        plt.xlabel("Backtest Days")
+
+        plt.legend(fontsize=12)
+        plt.grid(True)
+
+        plt.show()
+
+
         plt.show()
 
         exit()
@@ -656,16 +692,60 @@ if __name__ == "__main__":
     ax0.plot(price_series, color="black", linewidth=2, label="Price")
 
     # Moving Average trades on price
-    ax0.scatter(ma_buys, [price_series[i] for i in ma_buys], marker="^", color="green", s=80)
-    ax0.scatter(ma_sells, [price_series[i] for i in ma_sells], marker="v", color="red", s=80)
+    ax0.scatter(
+        [i for i in ma_buys if i < len(price_series)],
+        [price_series[i] for i in ma_buys if i < len(price_series)],
+        marker="^",
+        color="green",
+        s=80
+    )
+
+    ax0.scatter(
+        [i for i in ma_sells if i < len(price_series)],
+        [price_series[i] for i in ma_sells if i < len(price_series)],
+        marker="v",
+        color="red",
+        s=80
+    )
 
     # Mean Reversion trades
-    ax0.scatter(mr_buys, [price_series[i] for i in mr_buys], marker="^", color="orange", s=80)
-    ax0.scatter(mr_sells, [price_series[i] for i in mr_sells], marker="v", color="darkorange", s=80)
+    ax0.scatter(
+        [i for i in mr_buys if i < len(price_series)],
+        [price_series[i] for i in mr_buys if i < len(price_series)],
+        marker="^",
+        color="orange",
+        s=80
+    )
+
+    ax0.scatter(
+        [i for i in mr_sells if i < len(price_series)],
+        [price_series[i] for i in mr_sells if i < len(price_series)],
+        marker="v",
+        color="darkorange",
+        s=80
+    )
+
+    # Moving Average trades
+    x, y = safe_points(ma_buys, price_series)
+    ax0.scatter(x, y, marker="^", color="green", s=80)
+
+    x, y = safe_points(ma_sells, price_series)
+    ax0.scatter(x, y, marker="v", color="red", s=80)
+
+    # Mean Reversion trades
+    x, y = safe_points(mr_buys, price_series)
+    ax0.scatter(x, y, marker="^", color="orange", s=80)
+
+    x, y = safe_points(mr_sells, price_series)
+    ax0.scatter(x, y, marker="v", color="darkorange", s=80)
 
     # Adaptive trades
-    ax0.scatter(ad_buys, [price_series[i] for i in ad_buys], marker="^", color="purple", s=80)
-    ax0.scatter(ad_sells, [price_series[i] for i in ad_sells], marker="v", color="magenta", s=80)
+    x, y = safe_points(ad_buys, price_series)
+    ax0.scatter(x, y, marker="^", color="purple", s=80)
+
+    x, y = safe_points(ad_sells, price_series)
+    ax0.scatter(x, y, marker="v", color="magenta", s=80)
+
     ax0.set_title(f"{ticker} Price", fontsize=15, fontweight="bold")
     ax0.legend(fontsize=12)
     ax0.grid(True)
