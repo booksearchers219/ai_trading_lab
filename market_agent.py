@@ -559,7 +559,7 @@ if __name__ == "__main__":
     print("Avg Trade:", round(ad_avg, 2))
 
     # Plot
-    fig, (ax0, ax1, ax2, ax3, ax4, ax5) = plt.subplots(6, 1, figsize=(10, 16), sharex=False)
+    fig, (ax0, ax1, ax2, ax3, ax4, ax5) = plt.subplots(6, 1, figsize=(14, 12), sharex=False)
 
     price_series = data["Close"].iloc[50:].reset_index(drop=True)
 
@@ -599,7 +599,7 @@ if __name__ == "__main__":
     x, y = safe_points(ad_sells, price_series)
     ax0.scatter(x, y, marker="v", color="magenta", s=80)
 
-    ax0.set_title(f"{ticker} Price", fontsize=15, fontweight="bold")
+    ax0.set_title(f"{ticker} Price", fontsize=15, fontweight="bold", loc="left")
     ax0.legend(fontsize=12)
     ax0.grid(True)
 
@@ -631,7 +631,7 @@ if __name__ == "__main__":
     x, y = safe_points(ad_sells, adaptive_equity)
     ax1.scatter(x, y, marker="v", color="magenta", s=80)
 
-    ax1.set_title(f"{ticker} Strategy Comparison", fontsize=16, fontweight="bold")
+    ax1.set_title(f"{ticker} Strategy Comparison", fontsize=16, fontweight="bold", loc="left")
     ax1.legend(fontsize=12)
     ax1.grid(True)
     ax1.yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
@@ -643,7 +643,7 @@ if __name__ == "__main__":
 
     ax2.axhline(y=0, color="black", linewidth=2, linestyle="--", alpha=0.5)
 
-    ax2.set_title("Drawdown", fontsize=15, fontweight="bold")
+    ax2.set_title("Drawdown", fontsize=15, fontweight="bold", loc="left")
     ax2.legend(fontsize=12)
     ax2.grid(True)
 
@@ -652,7 +652,7 @@ if __name__ == "__main__":
     ax3.hist(mr_profits, bins=20, alpha=0.6, label="MR")
     ax3.hist(ad_profits, bins=20, alpha=0.6, label="Adaptive")
 
-    ax3.set_title("Trade Profit Distribution", fontsize=15, fontweight="bold")
+    ax3.set_title("Trade Profit Distribution", fontsize=15, fontweight="bold", loc="left")
     ax3.set_xlabel("Profit per Trade")
     ax3.set_ylabel("Number of Trades")
 
@@ -676,7 +676,7 @@ if __name__ == "__main__":
 
     ax4.bar(labels, values, color=colors)
 
-    ax4.set_title("Win/Loss Trade Count", fontsize=15, fontweight="bold")
+    ax4.set_title("Win/Loss Trade Count", fontsize=15, fontweight="bold", loc="left")
     ax4.set_ylabel("Number of Trades")
     ax4.grid(True)
 
@@ -687,7 +687,7 @@ if __name__ == "__main__":
 
     ax5.axhline(y=0, color="black", linestyle="--", linewidth=1)
 
-    ax5.set_title("Rolling Sharpe Ratio", fontsize=15, fontweight="bold")
+    ax5.set_title("Rolling Sharpe Ratio", fontsize=15, fontweight="bold", loc="left")
     ax5.set_ylabel("Sharpe")
     ax5.set_xlabel("Backtest Days")
 
@@ -705,6 +705,6 @@ if __name__ == "__main__":
         ad_returns
     ])
 
-    save_heatmap(heatmap_array, heatmap_labels, args, timestamp)
 
-    save_portfolio_chart(ma_portfolio_curve, mr_portfolio_curve, ad_portfolio_curve, args, timestamp)
+plt.tight_layout()
+plt.show()
