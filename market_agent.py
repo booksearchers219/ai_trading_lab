@@ -10,7 +10,17 @@ import os
 from charts import save_heatmap, save_portfolio_chart, save_strategy_dominance, save_sharpe_leaderboard, save_regime_distribution, save_trade_opportunities
 from datetime import datetime
 import glob
+import yfinance as yf
+from live_trading import run_live_simulation
 
+
+def get_live_price(ticker):
+
+    data = yf.Ticker(ticker)
+
+    price = data.history(period="1d", interval="1m")["Close"].iloc[-1]
+
+    return float(price)
 def cleanup_reports(max_files=50):
     files = sorted(glob.glob("reports/*"), key=os.path.getmtime)
 
@@ -102,16 +112,28 @@ if __name__ == "__main__":
     parser.add_argument("--strategy", type=str,
                         help="Run single strategy: ma, mr, adaptive")
 
-    parser.add_argument("--top", type=int, help="Show top N strategies by Sharpe")
+    parser.add_argument("--top", type=int,
+                        help="Show top N strategies by Sharpe")
 
     parser.add_argument("--parallel", action="store_true",
                         help="Run multi-ticker scan in parallel")
+
     parser.add_argument("--sweep", action="store_true",
                         help="Run moving average parameter sweep")
+
     parser.add_argument("--report", action="store_true",
                         help="Save scan results and charts to reports folder")
 
+    parser.add_argument("--live", action="store_true",
+                        help="Run live portfolio simulation")
+
     args = parser.parse_args()
+
+    if args.live:
+        from live_trading import run_live_simulation
+
+        run_live_simulation()
+        exit()
 
     if args.scan == "sp500":
 
