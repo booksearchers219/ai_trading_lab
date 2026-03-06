@@ -45,15 +45,15 @@ def run_live_simulation():
             if t in prices:
                 print(f"{t:<6} {round(prices[t], 2)}")
 
+        signal_list = []
+
         best_score = 0
         best_signal = None
         best_ticker = None
         best_strategy = None
 
         for ticker in SCAN_UNIVERSE:
-
             data = data_cache[ticker]
-
             signals = {
                 "MA": analyze_market(data),
                 "MR": mean_reversion_strategy(data),
@@ -63,6 +63,8 @@ def run_live_simulation():
             for strat, signal in signals.items():
 
                 if signal == "BUY":
+
+                    signal_list.append((strat, ticker))
 
                     # basic scoring system
                     score = 1
@@ -77,26 +79,14 @@ def run_live_simulation():
                         best_ticker = ticker
                         best_strategy = strat
 
-        for ticker in SCAN_UNIVERSE:
+        print("\nSignals detected")
+        print("----------------")
 
-            data = data_cache[ticker]
-
-            signals = {
-                "MA": analyze_market(data),
-                "MR": mean_reversion_strategy(data),
-                "AD": adaptive_strategy(data, adaptive_state)
-            }
-
-            for strat, signal in signals.items():
-
-                if signal == "BUY":
-                    best_signal = signal
-                    best_ticker = ticker
-                    best_strategy = strat
-                    break
-
-            if best_signal:
-                break
+        if not signal_list:
+            print("None")
+        else:
+            for strat, ticker in signal_list:
+                print(f"{strat:<3} {ticker}")
 
         if best_signal:
 
@@ -157,5 +147,5 @@ def run_live_simulation():
 
         time.sleep(60)
 
-    if __name__ == "__main__":
-        run_live_simulation()
+if __name__ == "__main__":
+    run_live_simulation()
