@@ -1,7 +1,48 @@
+# -----------------------
+# Python
+# -----------------------
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.env
+*.so
+
+# Virtual environments
+venv/
+.env/
+.envrc
+
+# -----------------------
+# Project generated data
+# -----------------------
 reports/
-*.log
+data/
+backtests/
+cache/
+logs/
+
+# CSV / exports from scans
+*.csv
+
+# -----------------------
+# Jupyter
+# -----------------------
+.ipynb_checkpoints/
+
+# -----------------------
+# OS junk
+# -----------------------
+.DS_Store
+Thumbs.db
+
+# -----------------------
+# Editors
+# -----------------------
+.vscode/
+.idea/
+
+# -----------------------
+# matplotlib output
+# -----------------------
+*.png
+*.pdf
