@@ -9,8 +9,14 @@ import multiprocessing as mp
 import os
 from charts import save_heatmap, save_portfolio_chart, save_strategy_dominance, save_sharpe_leaderboard, save_regime_distribution, save_trade_opportunities
 from datetime import datetime
+import glob
 
+def cleanup_reports(max_files=50):
+    files = sorted(glob.glob("reports/*"), key=os.path.getmtime)
 
+    if len(files) > max_files:
+        for f in files[:-max_files]:
+            os.remove(f)
 
 plt.style.use("ggplot")
 
@@ -126,10 +132,14 @@ if __name__ == "__main__":
 
     if batch_mode == "y":
 
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
         if args.report:
             os.makedirs("reports", exist_ok=True)
+            report_dir = f"reports/{timestamp}"
+            os.makedirs(report_dir, exist_ok=True)
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
 
         results = []
         heatmap_data = []
@@ -239,7 +249,7 @@ if __name__ == "__main__":
         csv_file = "strategy_results.csv"
 
         if args.report:
-            csv_file = f"reports/{timestamp}_scan_results.csv"
+            csv_file = f"{report_dir}/scan_results.csv"
 
         with open(csv_file, "w", newline="") as file:
             writer = csv.writer(file)
@@ -315,7 +325,7 @@ if __name__ == "__main__":
         print(f"{'Mean Reversion':<18}: {mr_wins}")
         print(f"{'Adaptive':<18}: {ad_wins}")
 
-        save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp)
+        save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp, report_dir)
 
         print("\nRegime Performance\n")
 
@@ -396,15 +406,15 @@ if __name__ == "__main__":
 
         print("Regime totals:", trend_total, side_total)
 
-        save_heatmap(heatmap_array, heatmap_labels, args, timestamp)
+        save_heatmap(heatmap_array, heatmap_labels, args, timestamp, report_dir)
 
-        save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp)
+        save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp, report_dir)
 
-        save_sharpe_leaderboard(results, args, timestamp)
+        save_sharpe_leaderboard(results, args, timestamp, report_dir)
 
-        save_regime_distribution(trend_total, side_total, args, timestamp)
+        save_regime_distribution(trend_total, side_total, args, timestamp, report_dir)
 
-        save_trade_opportunities(results, args, timestamp)
+        save_trade_opportunities(results, args, timestamp, report_dir)
 
 
     ticker = args.ticker.upper()
@@ -600,7 +610,7 @@ if __name__ == "__main__":
     ax0.scatter(x, y, marker="v", color="magenta", s=80)
 
     ax0.set_title(f"{ticker} Price", fontsize=15, fontweight="bold", loc="left")
-    ax0.legend(fontsize=12)
+    ax0.legend(loc="upper left", bbox_to_anchor=(1,1))
     ax0.grid(True)
 
     ax1.plot(ma_equity, label="Moving Average", linewidth=3)
@@ -632,7 +642,7 @@ if __name__ == "__main__":
     ax1.scatter(x, y, marker="v", color="magenta", s=80)
 
     ax1.set_title(f"{ticker} Strategy Comparison", fontsize=16, fontweight="bold", loc="left")
-    ax1.legend(fontsize=12)
+    ax1.legend(loc="upper left", bbox_to_anchor=(1,1))
     ax1.grid(True)
     ax1.yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
 
@@ -644,7 +654,7 @@ if __name__ == "__main__":
     ax2.axhline(y=0, color="black", linewidth=2, linestyle="--", alpha=0.5)
 
     ax2.set_title("Drawdown", fontsize=15, fontweight="bold", loc="left")
-    ax2.legend(fontsize=12)
+    ax2.legend(loc="upper left", bbox_to_anchor=(1, 1))
     ax2.grid(True)
 
     # Trade Profit Distribution
@@ -656,7 +666,7 @@ if __name__ == "__main__":
     ax3.set_xlabel("Profit per Trade")
     ax3.set_ylabel("Number of Trades")
 
-    ax3.legend(fontsize=12)
+    ax3.legend(loc="upper left", bbox_to_anchor=(1,1))
     ax3.grid(True)
 
     # Win/Loss Distribution
@@ -691,7 +701,7 @@ if __name__ == "__main__":
     ax5.set_ylabel("Sharpe")
     ax5.set_xlabel("Backtest Days")
 
-    ax5.legend(fontsize=11)
+    ax5.legend(loc="upper left", bbox_to_anchor=(1,1))
     ax5.grid(True)
 
     # Strategy returns for correlation

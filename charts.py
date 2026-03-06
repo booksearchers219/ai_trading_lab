@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-def save_heatmap(heatmap_array, heatmap_labels, args, timestamp):
+def save_heatmap(heatmap_array, heatmap_labels, args, timestamp, report_dir):
 
     plt.figure(figsize=(8,10))
     plt.imshow(heatmap_array, cmap="coolwarm", aspect="auto")
@@ -16,14 +16,14 @@ def save_heatmap(heatmap_array, heatmap_labels, args, timestamp):
     plt.tight_layout()
 
     if args.report:
-        plt.savefig(f"reports/{timestamp}_heatmap.png", dpi=300)
+        plt.savefig(f"{report_dir}/heatmap.png", dpi=300)
     else:
         plt.show()
 
     plt.close()
 
 
-def save_portfolio_chart(ma_curve, mr_curve, ad_curve, args, timestamp):
+def save_portfolio_chart(ma_curve, mr_curve, ad_curve, args, timestamp, report_dir):
 
     plt.figure(figsize=(10,6))
 
@@ -46,38 +46,13 @@ def save_portfolio_chart(ma_curve, mr_curve, ad_curve, args, timestamp):
     plt.grid(True)
 
     if args.report:
-        plt.savefig(f"reports/{timestamp}_portfolio.png", dpi=300)
+        plt.savefig(f"{report_dir}/portfolio.png", dpi=300)
     else:
         plt.show()
 
     plt.close()
 
-    def save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp):
-
-        import matplotlib.pyplot as plt
-
-        labels = ["Moving Average", "Mean Reversion", "Adaptive"]
-        values = [ma_wins, mr_wins, ad_wins]
-        colors = ["blue", "orange", "purple"]
-
-        plt.figure(figsize=(8, 5))
-
-        plt.bar(labels, values, color=colors)
-
-        plt.title("Strategy Wins Across Market Scan", fontsize=15, fontweight="bold")
-        plt.ylabel("Number of Tickers")
-        plt.grid(axis="y", alpha=0.3)
-
-        if args.report:
-            plt.savefig(f"reports/{timestamp}_strategy_dominance.png", dpi=300)
-        else:
-            plt.show()
-
-        plt.close()
-
-def save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp):
-
-    import matplotlib.pyplot as plt
+def save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp, report_dir):
 
     labels = ["Moving Average", "Mean Reversion", "Adaptive"]
     values = [ma_wins, mr_wins, ad_wins]
@@ -92,14 +67,37 @@ def save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp):
     plt.grid(axis="y", alpha=0.3)
 
     if args.report:
-        plt.savefig(f"reports/{timestamp}_strategy_dominance.png", dpi=300)
+        plt.savefig(f"{report_dir}/strategy_dominance.png", dpi=300)
+    else:
+        plt.show()
+
+    plt.close()
+
+def save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp, report_dir):
+
+    labels = ["Moving Average", "Mean Reversion", "Adaptive"]
+    values = [ma_wins, mr_wins, ad_wins]
+    colors = ["blue", "orange", "purple"]
+
+    plt.figure(figsize=(8,5))
+
+    plt.bar(labels, values, color=colors)
+
+    plt.title("Strategy Wins Across Market Scan", fontsize=15, fontweight="bold")
+    plt.ylabel("Number of Tickers")
+    plt.grid(axis="y", alpha=0.3)
+
+    if args.report:
+        plt.savefig(f"{report_dir}/strategy_dominance.png", dpi=300)
     else:
         plt.show()
 
     plt.close()
 
 
-def save_sharpe_leaderboard(results, args, timestamp, top_n=20):
+
+
+def save_sharpe_leaderboard(results, args, timestamp, report_dir, top_n=20):
 
     import matplotlib.pyplot as plt
 
@@ -123,13 +121,13 @@ def save_sharpe_leaderboard(results, args, timestamp, top_n=20):
     plt.grid(axis="x", alpha=0.3)
 
     if args.report:
-        plt.savefig(f"reports/{timestamp}_sharpe_leaderboard.png", dpi=300)
+        plt.savefig(f"{report_dir}/sharpe_leaderboard.png", dpi=300)
     else:
         plt.show()
 
     plt.close()
 
-def save_regime_distribution(trend_count, side_count, args, timestamp):
+def save_regime_distribution(trend_count, side_count, args, timestamp, report_dir):
 
     import matplotlib.pyplot as plt
 
@@ -147,13 +145,13 @@ def save_regime_distribution(trend_count, side_count, args, timestamp):
     plt.grid(axis="y", alpha=0.3)
 
     if args.report:
-        plt.savefig(f"reports/{timestamp}_market_regimes.png", dpi=300)
+        plt.savefig(f"{report_dir}/market_regimes.png", dpi=300)
     else:
         plt.show()
 
     plt.close()
 
-def save_trade_opportunities(results, args, timestamp, top_n=10):
+def save_trade_opportunities(results, args, timestamp, report_dir, top_n=10):
 
     import csv
 
@@ -189,7 +187,7 @@ def save_trade_opportunities(results, args, timestamp, top_n=10):
 
     if args.report:
 
-        file = f"reports/{timestamp}_trade_opportunities.csv"
+        file = f"{report_dir}/trade_opportunities.csv"
 
         with open(file, "w", newline="") as f:
             writer = csv.writer(f)
