@@ -151,13 +151,31 @@ def council_strategy(data, state):
 
         return decision
 
+    buy_weight = 0
+    sell_weight = 0
+
     signals = []
 
     for short, long, sharpe in strategies:
+
         signal = analyze_market(data, short, long)
+
         signals.append(signal)
 
-    decision = strategy_vote(signals)
+        if signal == "BUY":
+            buy_weight += sharpe
+
+        if signal == "SELL":
+            sell_weight += sharpe
+
+    if buy_weight > sell_weight and buy_weight > 0:
+        decision = "BUY"
+
+    elif sell_weight > buy_weight and sell_weight > 0:
+        decision = "SELL"
+
+    else:
+        decision = "HOLD"
 
     if state.get("debug"):
         print(f"{regime} council votes:", signals, "→", decision)

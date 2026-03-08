@@ -69,10 +69,8 @@ plt.style.use("ggplot")
 def max_drawdown(drawdowns):
     return min(drawdowns)
 
-returns = [
-(segment[j] - segment[j-1]) / segment[j-1]
-for j in range(1, len(segment))
-]
+
+def rolling_sharpe(equity_curve, window=20):
 
     sharpes = []
 
@@ -92,7 +90,7 @@ for j in range(1, len(segment))
         if std == 0:
             sharpes.append(0)
         else:
-            sharpes.append((mean/std) * np.sqrt(252))
+            sharpes.append((mean / std) * np.sqrt(252))
 
     return sharpes
 
@@ -178,18 +176,23 @@ def lab_worker(args):
     sharpes = []
 
     for t in tickers:
-
         data = data_cache[t]
 
         equity, final_value, _, _, _ = run_backtest(data, ma_strategy)
 
         sharpe = calculate_sharpe(equity)
 
+        if np.isnan(sharpe):
+            sharpe = 0
+
         sharpes.append(sharpe)
 
-    avg_sharpe = sum(sharpes) / len(sharpes)
+    avg_sharpe = np.mean(sharpes)
+    std_sharpe = np.std(sharpes)
 
-    return ("MA", s, l, avg_sharpe)
+    stability_score = avg_sharpe / (1 + std_sharpe)
+
+    return ("MA", s, l, stability_score)
 
 
 if __name__ == "__main__":
@@ -342,8 +345,8 @@ if __name__ == "__main__":
 
         results = []
 
-        short_windows = range(3, 50)
-        long_windows = range(10, 200)
+        short_windows = range(3, 120)
+        long_windows = range(10, 400)
 
         jobs = []
 
@@ -417,7 +420,26 @@ if __name__ == "__main__":
 
         combined.sort(key=lambda x: x[3], reverse=True)
 
-        survivors = combined[:100]
+        survivors = []
+
+        min_gap = 10
+
+        for strat in combined:
+
+            _, short, long, sharpe = strat
+
+            too_close = False
+
+            for s in survivors:
+                if abs(short - s[1]) < min_gap and abs(long - s[2]) < min_gap:
+                    too_close = True
+                    break
+
+            if not too_close:
+                survivors.append(strat)
+
+            if len(survivors) >= 100:
+                break
 
         with open("strategies.csv", "w", newline="") as f:
 
@@ -1157,9 +1179,11 @@ if __name__ == "__main__":
     ax5.grid(True)
 
     # Strategy returns for correlation
-    ma_returns = np.diff(ma_equity) / ma_equity[:-1]
-    mr_returns = np.diff(mr_equity) / mr_equity[:-1]
-    ad_returns = np.diff(adaptive_equity) / adaptive_equity[:-1]
+    min_len = min(len(ma_returns), len(mr_returns), len(ad_returns))
+
+    ma_returns = ma_returns[:min_len]
+    mr_returns = mr_returns[:min_len]
+    ad_returns = ad_returns[:min_len]
 
     # Prevent numpy warnings if strategies never traded
     if (
