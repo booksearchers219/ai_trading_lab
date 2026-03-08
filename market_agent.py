@@ -1,4 +1,5 @@
 import matplotlib.ticker as mtick
+import matplotlib.pyplot as plt
 import csv
 from data_utils import *
 from strategies import *
@@ -23,6 +24,31 @@ import yfinance as yf
 from live_trading import run_live_simulation
 
 
+def load_best_strategies(limit=5):
+
+    strategies = []
+
+    try:
+        with open("strategies.csv") as f:
+
+            reader = csv.DictReader(f)
+
+            for row in reader:
+
+                strategies.append((
+                    int(row["Short"]),
+                    int(row["Long"]),
+                    float(row["Sharpe"])
+                ))
+
+    except:
+        return []
+
+    strategies.sort(key=lambda x: x[2], reverse=True)
+
+    return strategies[:limit]
+
+
 def get_live_price(ticker):
 
     data = yf.Ticker(ticker)
@@ -30,6 +56,7 @@ def get_live_price(ticker):
     price = data.history(period="1d", interval="1m")["Close"].iloc[-1]
 
     return float(price)
+
 def cleanup_reports(max_files=50):
     files = sorted(glob.glob("reports/*"), key=os.path.getmtime)
 
@@ -101,8 +128,35 @@ def process_ticker(args):
             ad_equity
         )
 
-    except Exception:
+
+    except Exception as e:
+        print(f"Error processing {ticker}: {e}")
         return None
+
+def lab_worker(args):
+
+    s, l, tickers, data_cache = args
+
+    def ma_strategy(d, short=s, long=l):
+        return analyze_market(d, short, long)
+
+    sharpes = []
+
+    for t in tickers:
+
+        data = data_cache[t]
+
+        equity, final_value, _, _, _ = run_backtest(data, ma_strategy)
+
+        sharpe = calculate_sharpe(equity)
+
+        sharpes.append(sharpe)
+
+    avg_sharpe = sum(sharpes) / len(sharpes)
+
+    return ("MA", s, l, avg_sharpe)
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AI Trading Lab")
@@ -137,11 +191,17 @@ if __name__ == "__main__":
     parser.add_argument("--live", action="store_true",
                         help="Run live portfolio simulation")
 
-    parser.add_argument("--discover", action="store_true",
-                        help="Run automatic strategy discovery")
+    # parser.add_argument("--discover", action="store_true",
+      #                   help="Run automatic strategy discovery")
 
     parser.add_argument("--evolve", action="store_true",
                         help="Run evolutionary strategy search")
+
+    parser.add_argument("--lab", action="store_true",
+                        help="Run full strategy research lab")
+
+    parser.add_argument("--autotrade", action="store_true",
+                        help="Run top discovered strategies")
 
     args = parser.parse_args()
 
@@ -159,26 +219,35 @@ if __name__ == "__main__":
         else:
             ticker_list = all_tickers
 
-    if args.discover:
 
-        print("\nRunning Strategy Discovery\n")
 
-        discovery_results = []
+    if args.evolve:
+
+        import random
+
+        print("\nRunning Evolutionary Strategy Discovery\n")
 
         tickers = ["TSLA", "NVDA", "AAPL", "MSFT", "AMD"]
 
-        short_windows = range(3, 30)
-        long_windows = range(20, 200, 5)
+        population_size = 20
+        generations = 10
 
-        for s in short_windows:
-            for l in long_windows:
+        population = []
 
-                if s >= l:
-                    continue
+        for _ in range(population_size):
+            short = random.randint(3, 30)
+            long = random.randint(short + 5, 120)
 
+            population.append((short, long))
 
-                def ma_strategy(d, short=s, long=l):
-                    return analyze_market(d, short, long)
+        for g in range(generations):
+
+            results = []
+
+            for short, long in population:
+
+                def ma_strategy(d, s=short, l=long):
+                    return analyze_market(d, s, l)
 
 
                 sharpes = []
@@ -194,96 +263,121 @@ if __name__ == "__main__":
 
                 avg_sharpe = sum(sharpes) / len(sharpes)
 
-                discovery_results.append(
-                    ("MA", f"{s}/{l}", avg_sharpe)
-                )
+                results.append((short, long, avg_sharpe))
 
-        discovery_results.sort(key=lambda x: x[2], reverse=True)
+            results.sort(key=lambda x: x[2], reverse=True)
 
-        print("\nTop Discovered Strategies\n")
+            best = results[:5]
 
-        for strat, params, sharpe in discovery_results[:10]:
-            print(f"{strat:<3} {params:<8} Sharpe {sharpe:.2f}")
+            print(f"\nGeneration {g + 1} best strategies")
+
+            for s, l, sh in best:
+                print(f"MA {s}/{l} Sharpe {sh:.2f}")
+
+            population = []
+
+            for s, l, _ in best:
+
+                population.append((s, l))
+
+                for _ in range(3):
+                    new_s = max(3, s + random.randint(-3, 3))
+                    new_l = max(new_s + 5, l + random.randint(-10, 10))
+
+                    population.append((new_s, new_l))
+
+        best = results[0]
+
+        print("\nFinal Best Strategy")
+
+        print(f"MA {best[0]}/{best[1]} Sharpe {best[2]:.2f}")
 
         exit()
 
-if args.evolve:
+    if args.lab:
 
-    import random
+        print("\nRunning Strategy Lab\n")
 
-    print("\nRunning Evolutionary Strategy Discovery\n")
+        tickers = ["TSLA", "NVDA", "AAPL", "MSFT", "AMD"]
 
-    tickers = ["TSLA", "NVDA", "AAPL", "MSFT", "AMD"]
-
-    population_size = 20
-    generations = 10
-
-    population = []
-
-    for _ in range(population_size):
-        short = random.randint(3, 30)
-        long = random.randint(short + 5, 120)
-
-        population.append((short, long))
-
-    for g in range(generations):
+        data_cache = {t: get_recent_data(t, args.window) for t in tickers}
 
         results = []
 
-        for short, long in population:
+        short_windows = range(3, 50)
+        long_windows = range(10, 200)
 
+        jobs = []
+
+        for s in short_windows:
+            for l in long_windows:
+
+                if s >= l:
+                    continue
+
+                jobs.append((s, l, tickers, data_cache))
+
+        print("Testing", len(jobs), "strategies across CPU cores\n")
+
+        pool = mp.Pool(mp.cpu_count())
+
+        results = pool.map(lab_worker, jobs, chunksize=50)
+
+        pool.close()
+        pool.join()
+
+
+        results.sort(key=lambda x: x[3], reverse=True)
+
+        print("\nTop Strategies Found\n")
+
+        for r in results[:20]:
+            print(f"{r[0]} {r[1]}/{r[2]} Sharpe {r[3]:.2f}")
+
+        import csv
+
+        with open("strategies.csv", "w", newline="") as f:
+
+            writer = csv.writer(f)
+
+            writer.writerow(["Strategy", "Short", "Long", "Sharpe"])
+
+            for r in results[:100]:
+                writer.writerow(r)
+
+        print("\nSaved strategies to strategies.csv")
+
+        exit()
+
+    ticker = args.ticker.upper()
+    months = args.window
+
+    if args.autotrade:
+
+        strategies = load_best_strategies()
+
+        if not strategies:
+            print("No strategies found. Run --lab first.")
+            exit()
+
+        print("\nRunning Top Discovered Strategies\n")
+
+        data = get_recent_data(ticker, months)
+
+        for short, long, sharpe in strategies:
             def ma_strategy(d, s=short, l=long):
                 return analyze_market(d, s, l)
 
 
-            sharpes = []
+            equity, final_value, _, _, _ = run_backtest(data, ma_strategy)
 
-            for t in tickers:
-                data = get_recent_data(t, args.window)
+            print(
+                f"MA {short}/{long} | "
+                f"Lab Sharpe: {sharpe:.2f} | "
+                f"Final Value: ${final_value:,.2f}"
+            )
 
-                equity, final_value, _, _, _ = run_backtest(data, ma_strategy)
-
-                sharpe = calculate_sharpe(equity)
-
-                sharpes.append(sharpe)
-
-            avg_sharpe = sum(sharpes) / len(sharpes)
-
-            results.append((short, long, avg_sharpe))
-
-        results.sort(key=lambda x: x[2], reverse=True)
-
-        best = results[:5]
-
-        print(f"\nGeneration {g + 1} best strategies")
-
-        for s, l, sh in best:
-            print(f"MA {s}/{l} Sharpe {sh:.2f}")
-
-        population = []
-
-        for s, l, _ in best:
-
-            population.append((s, l))
-
-            for _ in range(3):
-                new_s = max(3, s + random.randint(-3, 3))
-                new_l = max(new_s + 5, l + random.randint(-10, 10))
-
-                population.append((new_s, new_l))
-
-    best = results[0]
-
-    print("\nFinal Best Strategy")
-
-    print(f"MA {best[0]}/{best[1]} Sharpe {best[2]:.2f}")
-
-    exit()
-    ticker = args.ticker.upper()
-
-    months = args.window
-
-    ticker = args.ticker.upper()
+        exit()
 
     batch_mode = "y" if args.scan else "n"
 
@@ -732,20 +826,13 @@ if args.evolve:
                 f"Sharpe: {round(sharpe, 2):>6}"
             )
 
-            regime = r[1]
+        print("\nTop 10 Moving Average Strategies\n")
 
-            if regime == "TRENDING":
-                trend_total += 1
-            else:
-                side_total += 1
-
-            print("\nTop 10 Moving Average Strategies\n")
-
-            for r in top_results[:10]:
-                print(
-                    f"MA {r[0]}/{r[1]} | "
-                    f"Final: ${r[2]:,.2f} | "
-                    f"Sharpe: {r[3]:.2f}"
+        for r in top_results[:10]:
+            print(
+                f"MA {r[0]}/{r[1]} | "
+                f"Final: ${r[2]:,.2f} | "
+                f"Sharpe: {r[3]:.2f}"
                 )
 
 
