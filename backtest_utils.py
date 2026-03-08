@@ -2,7 +2,7 @@ import math
 
 
 def run_backtest(data, strategy_function):
-
+    state = {}
     cash = 10000
     shares = 0
     entry_price = None
@@ -13,7 +13,6 @@ def run_backtest(data, strategy_function):
     trade_profits = []
 
     hold_days = 0
-    state = {}
 
     for i in range(50, len(data)):
 
@@ -24,6 +23,10 @@ def run_backtest(data, strategy_function):
         else:
             decision = strategy_function(recent_data)
 
+            # allow entry if strategy already bullish
+            if shares == 0 and decision == "BUY" and entry_price is None:
+                decision = "BUY"
+
         current_price = data["Close"].iloc[i]
         slippage = current_price * 0.0005
         current_price += slippage
@@ -33,8 +36,11 @@ def run_backtest(data, strategy_function):
 
         if decision == "BUY" and shares == 0:
 
+            if entry_price is None:
+                entry_price = current_price
+
             risk_per_trade = cash * 0.02
-            shares = int(risk_per_trade / current_price)
+            shares = max(1, int(risk_per_trade / current_price))
 
             if shares > 0:
 

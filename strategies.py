@@ -1,11 +1,11 @@
 import numpy as np
 
 
-def analyze_market(data, short_window=5, long_window=20):
+def analyze_market(data, short_window=3, long_window=10):
 
     closes = data["Close"]
 
-    if len(closes) < 20:
+    if len(closes) < long_window:
         return "HOLD"
 
     short_ma = closes.rolling(window=short_window).mean().iloc[-1]
@@ -13,11 +13,8 @@ def analyze_market(data, short_window=5, long_window=20):
 
     if short_ma > long_ma:
         return "BUY"
-    elif short_ma < long_ma:
-        return "SELL"
     else:
         return "HOLD"
-
 
 def mean_reversion_strategy(data):
 
@@ -27,8 +24,9 @@ def mean_reversion_strategy(data):
         return "HOLD"
 
     five_day_return = (closes.iloc[-1] - closes.iloc[-6]) / closes.iloc[-6]
+    # print("5-day return:", five_day_return)
 
-    if five_day_return < -0.03:
+    if five_day_return < -0.01:
         return "BUY"
 
     return "HOLD"

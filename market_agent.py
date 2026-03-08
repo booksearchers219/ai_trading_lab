@@ -775,11 +775,22 @@ if __name__ == "__main__":
     mr_returns = np.diff(mr_equity) / mr_equity[:-1]
     ad_returns = np.diff(adaptive_equity) / adaptive_equity[:-1]
 
-    corr_matrix = np.corrcoef([
-        ma_returns,
-        mr_returns,
-        ad_returns
-    ])
+    # Prevent numpy warnings if strategies never traded
+    if (
+            len(ma_returns) == 0
+            or len(mr_returns) == 0
+            or len(ad_returns) == 0
+            or np.std(ma_returns) == 0
+            or np.std(mr_returns) == 0
+            or np.std(ad_returns) == 0
+    ):
+        corr_matrix = None
+    else:
+        corr_matrix = np.corrcoef([
+            ma_returns,
+            mr_returns,
+            ad_returns
+        ])
 
 
     plt.tight_layout()
