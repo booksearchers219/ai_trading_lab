@@ -196,3 +196,44 @@ def save_trade_opportunities(results, args, timestamp, report_dir, top_n=10):
 
             for row in top:
                 writer.writerow(row)
+
+def save_regime_strategy_chart(trend_counts, side_counts, args, timestamp, report_dir):
+
+    import matplotlib.pyplot as plt
+
+    strategies = ["MA", "MR", "AD"]
+
+    trending = [
+        trend_counts["MA"],
+        trend_counts["MR"],
+        trend_counts["AD"]
+    ]
+
+    sideways = [
+        side_counts["MA"],
+        side_counts["MR"],
+        side_counts["AD"]
+    ]
+
+    x = range(len(strategies))
+
+    plt.figure(figsize=(8,5))
+
+    plt.bar(x, trending, width=0.4, label="Trending", align="edge")
+    plt.bar(x, sideways, width=-0.4, label="Sideways", align="edge")
+
+    plt.xticks(x, strategies)
+
+    plt.title("Strategy Performance by Market Regime", fontsize=15, fontweight="bold")
+    plt.ylabel("Wins")
+    plt.xlabel("Strategy")
+
+    plt.legend()
+    plt.grid(axis="y", alpha=0.3)
+
+    if args.report:
+        plt.savefig(f"{report_dir}/regime_strategy_performance.png", dpi=300)
+    else:
+        plt.show()
+
+    plt.close()

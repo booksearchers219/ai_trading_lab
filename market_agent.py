@@ -7,7 +7,16 @@ from visualization import *
 import argparse
 import multiprocessing as mp
 import os
-from charts import save_heatmap, save_portfolio_chart, save_strategy_dominance, save_sharpe_leaderboard, save_regime_distribution, save_trade_opportunities
+import numpy as np
+from charts import (
+    save_heatmap,
+    save_portfolio_chart,
+    save_strategy_dominance,
+    save_sharpe_leaderboard,
+    save_regime_distribution,
+    save_trade_opportunities,
+    save_regime_strategy_chart
+)
 from datetime import datetime
 import glob
 import yfinance as yf
@@ -62,11 +71,9 @@ def rolling_sharpe(equity_curve, window=20):
 
 def process_ticker(args):
 
-    ticker, months = args
+    ticker, data = args
 
     try:
-        data = get_recent_data(ticker, months)
-
         if data is None or len(data) < 50:
             return None
 
@@ -194,10 +201,18 @@ if __name__ == "__main__":
         if args.parallel:
 
             print("\nRunning parallel scan...\n")
+            pool = mp.Pool(mp.cpu_count())
 
-            pool = mp.Pool(min(8, mp.cpu_count()))
 
-            job_args = [(ticker, months) for ticker in ticker_list]
+            data_cache = {}
+
+            for ticker in ticker_list:
+                try:
+                    data_cache[ticker] = get_recent_data(ticker, months)
+                except:
+                    pass
+
+            job_args = [(ticker, data_cache[ticker]) for ticker in data_cache]
 
             import random
             random.shuffle(job_args)
@@ -380,6 +395,28 @@ if __name__ == "__main__":
         print("MR total :", f"${sum(mr_portfolio):,.2f}")
         print("AD total :", f"${sum(ad_portfolio):,.2f}")
 
+        import subprocess
+
+        best_run = max(sum(ma_portfolio), sum(mr_portfolio), sum(ad_portfolio))
+
+        try:
+            with open("best_result.txt", "r") as f:
+                previous_best = float(f.read().strip())
+        except:
+            previous_best = 0
+
+        if best_run > previous_best:
+            print("\nNEW BEST STRATEGY PERFORMANCE!")
+
+            with open("best_result.txt", "w") as f:
+                f.write(str(best_run))
+
+            tag_name = f"profit-{int(best_run)}"
+
+            subprocess.run(["git", "add", "."])
+            subprocess.run(["git", "commit", "-m", f"Strategy improvement: {best_run:.2f}"])
+            subprocess.run(["git", "tag", "-a", tag_name, "-m", f"Best strategy profit {best_run:.2f}"])
+
         ma_rank = sorted(results, key=lambda x: x[5], reverse=True)[:10]
 
         for r in ma_rank:
@@ -429,6 +466,10 @@ if __name__ == "__main__":
         print("MR wins:", side_counts["MR"])
         print("AD wins:", side_counts["AD"])
 
+        if len(heatmap_data) == 0:
+            print("No valid scan results. Skipping charts.")
+            exit()
+
         heatmap_array = np.array(heatmap_data[:top_n])
         heatmap_labels = heatmap_labels[:top_n]
 
@@ -440,12 +481,10 @@ if __name__ == "__main__":
         print("Regime totals:", trend_total, side_total)
 
         save_heatmap(heatmap_array, heatmap_labels, args, timestamp, report_dir)
-
         save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp, report_dir)
-
         save_sharpe_leaderboard(results, args, timestamp, report_dir)
-
         save_regime_distribution(trend_total, side_total, args, timestamp, report_dir)
+        save_regime_strategy_chart(trend_counts, side_counts, args, timestamp, report_dir)
 
         save_trade_opportunities(results, args, timestamp, report_dir)
 
