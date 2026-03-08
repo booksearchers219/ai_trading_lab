@@ -486,6 +486,15 @@ if __name__ == "__main__":
         save_regime_distribution(trend_total, side_total, args, timestamp, report_dir)
         save_regime_strategy_chart(trend_counts, side_counts, args, timestamp, report_dir)
 
+        save_portfolio_chart(
+            ma_portfolio_curve,
+            mr_portfolio_curve,
+            ad_portfolio_curve,
+            args,
+            timestamp,
+            report_dir
+        )
+
         save_trade_opportunities(results, args, timestamp, report_dir)
 
 

@@ -52,26 +52,7 @@ def save_portfolio_chart(ma_curve, mr_curve, ad_curve, args, timestamp, report_d
 
     plt.close()
 
-def save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp, report_dir):
 
-    labels = ["Moving Average", "Mean Reversion", "Adaptive"]
-    values = [ma_wins, mr_wins, ad_wins]
-    colors = ["blue", "orange", "purple"]
-
-    plt.figure(figsize=(8,5))
-
-    plt.bar(labels, values, color=colors)
-
-    plt.title("Strategy Wins Across Market Scan", fontsize=15, fontweight="bold")
-    plt.ylabel("Number of Tickers")
-    plt.grid(axis="y", alpha=0.3)
-
-    if args.report:
-        plt.savefig(f"{report_dir}/strategy_dominance.png", dpi=300)
-    else:
-        plt.show()
-
-    plt.close()
 
 def save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp, report_dir):
 
