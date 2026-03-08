@@ -93,3 +93,73 @@ def adaptive_strategy(data, state):
         return analyze_market(data)
 
     return mean_reversion_strategy(data)
+
+
+def strategy_vote(signals):
+
+    buy_votes = signals.count("BUY")
+    sell_votes = signals.count("SELL")
+
+    if buy_votes > sell_votes and buy_votes >= max(2, len(signals)//2 + 1):
+        return "BUY"
+
+    if sell_votes > buy_votes and sell_votes >= 2:
+        return "SELL"
+
+    return "HOLD"
+
+def voting_strategy(data, state):
+    ma_signal = analyze_market(data)
+    mr_signal = mean_reversion_strategy(data)
+    ad_signal = adaptive_strategy(data, state)
+
+    signals = [ma_signal, mr_signal, ad_signal]
+
+    decision = strategy_vote(signals)
+
+    if state.get("debug"):
+        print(
+            f"MA:{ma_signal:<5} "
+            f"MR:{mr_signal:<5} "
+            f"AD:{ad_signal:<5} "
+            f"→ VOTE:{decision}"
+        )
+
+    return decision
+
+def council_strategy(data, state):
+
+    regime = detect_regime(data)
+
+    if regime == "TRENDING":
+        strategies = state.get("trend_strategies", [])
+    else:
+        strategies = state.get("sideways_strategies", [])
+
+    if not strategies:
+
+        ma_signal = analyze_market(data)
+        mr_signal = mean_reversion_strategy(data)
+        ad_signal = adaptive_strategy(data, state)
+
+        signals = [ma_signal, mr_signal, ad_signal]
+
+        decision = strategy_vote(signals)
+
+        if state.get("debug"):
+            print("Council fallback vote:", signals, "→", decision)
+
+        return decision
+
+    signals = []
+
+    for short, long, sharpe in strategies:
+        signal = analyze_market(data, short, long)
+        signals.append(signal)
+
+    decision = strategy_vote(signals)
+
+    if state.get("debug"):
+        print(f"{regime} council votes:", signals, "→", decision)
+
+    return decision

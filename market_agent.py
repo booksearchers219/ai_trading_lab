@@ -1,5 +1,4 @@
 import matplotlib.ticker as mtick
-import matplotlib.pyplot as plt
 import csv
 from data_utils import *
 from strategies import *
@@ -9,6 +8,7 @@ import argparse
 import multiprocessing as mp
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 from charts import (
     save_heatmap,
     save_portfolio_chart,
@@ -69,7 +69,10 @@ plt.style.use("ggplot")
 def max_drawdown(drawdowns):
     return min(drawdowns)
 
-def rolling_sharpe(equity_curve, window=20):
+returns = [
+(segment[j] - segment[j-1]) / segment[j-1]
+for j in range(1, len(segment))
+]
 
     sharpes = []
 
@@ -81,10 +84,7 @@ def rolling_sharpe(equity_curve, window=20):
 
         segment = equity_curve[i-window:i]
 
-        returns = [
-            (segment[j] - segment[j-1]) / segment[j-1]
-            for j in range(1, len(segment))
-        ]
+        returns = np.diff(segment) / segment[:-1]
 
         mean = np.mean(returns)
         std = np.std(returns)
@@ -95,6 +95,41 @@ def rolling_sharpe(equity_curve, window=20):
             sharpes.append((mean/std) * np.sqrt(252))
 
     return sharpes
+
+def plot_strategy_landscape(results):
+
+    shorts = sorted(set(r[1] for r in results))
+    longs = sorted(set(r[2] for r in results))
+
+    heatmap = np.zeros((len(shorts), len(longs)))
+
+    for strat, s, l, sharpe in results:
+
+        i = shorts.index(s)
+        j = longs.index(l)
+
+        heatmap[i][j] = sharpe
+
+    plt.figure(figsize=(10,6))
+
+    plt.imshow(
+        heatmap,
+        aspect="auto",
+        origin="lower",
+        cmap="viridis"
+    )
+
+    plt.colorbar(label="Sharpe Ratio")
+
+    plt.xticks(range(len(longs)), longs, rotation=90)
+    plt.yticks(range(len(shorts)), shorts)
+
+    plt.xlabel("Long MA")
+    plt.ylabel("Short MA")
+    plt.title("Moving Average Strategy Landscape")
+
+    plt.tight_layout()
+    plt.show()
 
 def process_ticker(args):
 
@@ -202,6 +237,9 @@ if __name__ == "__main__":
 
     parser.add_argument("--autotrade", action="store_true",
                         help="Run top discovered strategies")
+
+    parser.add_argument("--debug-votes", action="store_true",
+                        help="Print strategy votes during backtest")
 
     args = parser.parse_args()
 
@@ -334,7 +372,52 @@ if __name__ == "__main__":
         for r in results[:20]:
             print(f"{r[0]} {r[1]}/{r[2]} Sharpe {r[3]:.2f}")
 
+        print("\nStrategy Scoreboard\n")
+
+        # Top performers
+        print("Top Sharpe Strategies")
+        for r in results[:10]:
+            print(f"MA {r[1]}/{r[2]}  Sharpe {r[3]:.2f}")
+
+        # Worst performers
+        print("\nWorst Strategies")
+        for r in results[-10:]:
+            print(f"MA {r[1]}/{r[2]}  Sharpe {r[3]:.2f}")
+
+        # Stability analysis
+        sharpes = [r[3] for r in results]
+
+        mean_sharpe = np.mean(sharpes)
+        std_sharpe = np.std(sharpes)
+
+        print("\nSharpe Distribution")
+        print("Average Sharpe:", round(mean_sharpe, 2))
+        print("Sharpe Std Dev:", round(std_sharpe, 2))
+
+        plot_strategy_landscape(results)
+
         import csv
+
+        existing = []
+
+        if os.path.exists("strategies.csv"):
+
+            with open("strategies.csv") as f:
+                reader = csv.DictReader(f)
+
+                for row in reader:
+                    existing.append((
+                        "MA",
+                        int(row["Short"]),
+                        int(row["Long"]),
+                        float(row["Sharpe"])
+                    ))
+
+        combined = existing + results
+
+        combined.sort(key=lambda x: x[3], reverse=True)
+
+        survivors = combined[:100]
 
         with open("strategies.csv", "w", newline="") as f:
 
@@ -342,8 +425,10 @@ if __name__ == "__main__":
 
             writer.writerow(["Strategy", "Short", "Long", "Sharpe"])
 
-            for r in results[:100]:
+            for r in survivors:
                 writer.writerow(r)
+
+        print(f"\nStrategy League Updated: {len(survivors)} survivors")
 
         print("\nSaved strategies to strategies.csv")
 
@@ -764,9 +849,35 @@ if __name__ == "__main__":
     mr_equity, mr_final, mr_buys, mr_sells, mr_profits = run_backtest(data, mean_reversion_strategy)
     adaptive_equity, adaptive_final, ad_buys, ad_sells, ad_profits = run_backtest(data, adaptive_strategy)
 
+    vote_state = {"debug": args.debug_votes}
+
+    vote_equity, vote_final, vote_buys, vote_sells, vote_profits = run_backtest(
+        data,
+        lambda d: voting_strategy(d, vote_state)
+    )
+
+    best_strategies = load_best_strategies(10)
+
+    trend_strategies = best_strategies[:5]
+    sideways_strategies = best_strategies[5:10]
+
+    council_state = {
+        "trend_strategies": trend_strategies,
+        "sideways_strategies": sideways_strategies,
+        "debug": args.debug_votes
+    }
+
+    council_equity, council_final, council_buys, council_sells, council_profits = run_backtest(
+        data,
+        lambda d: council_strategy(d, council_state)
+    )
+
+    council_sharpe = calculate_sharpe(council_equity)
+
     ma_sharpe = calculate_sharpe(ma_equity)
     mr_sharpe = calculate_sharpe(mr_equity)
     adaptive_sharpe = calculate_sharpe(adaptive_equity)
+    vote_sharpe = calculate_sharpe(vote_equity)
 
     # Buy & Hold
     first_price = data["Close"].iloc[0]
@@ -876,20 +987,36 @@ if __name__ == "__main__":
 
    # print("\nTrade Statistics")
 
-    print("\nMoving Average")
-    print("Trades:", len(ma_profits))
-    print("Win Rate:", round(ma_wr * 100, 1), "%")
-    print("Avg Trade:", round(ma_avg, 2))
-
     print("\nMean Reversion")
     print("Trades:", len(mr_profits))
     print("Win Rate:", round(mr_wr * 100, 1), "%")
     print("Avg Trade:", round(mr_avg, 2))
 
-    print("\nAdaptive")
-    print("Trades:", len(ad_profits))
-    print("Win Rate:", round(ad_wr * 100, 1), "%")
-    print("Avg Trade:", round(ad_avg, 2))
+    print("\nVoting Strategy")
+    print("Trades:", len(vote_profits))
+
+    vote_wins = sum(1 for p in vote_profits if p > 0)
+    vote_losses = sum(1 for p in vote_profits if p <= 0)
+
+    vote_wr = vote_wins / len(vote_profits) if vote_profits else 0
+    vote_avg = sum(vote_profits) / len(vote_profits) if vote_profits else 0
+
+    print("Win Rate:", round(vote_wr * 100, 1), "%")
+    print("Avg Trade:", round(vote_avg, 2))
+    print("Sharpe:", round(vote_sharpe, 2))
+
+    print("\nStrategy Council")
+    print("Trades:", len(council_profits))
+
+    council_wins = sum(1 for p in council_profits if p > 0)
+    council_wr = council_wins / len(council_profits) if council_profits else 0
+    council_avg = sum(council_profits) / len(council_profits) if council_profits else 0
+
+    print("Win Rate:", round(council_wr * 100, 1), "%")
+    print("Avg Trade:", round(council_avg, 2))
+    print("Sharpe:", round(council_sharpe, 2))
+
+
 
     # Plot
     fig, (ax0, ax1, ax2, ax3, ax4, ax5) = plt.subplots(6, 1, figsize=(14, 12), sharex=False)
@@ -940,6 +1067,8 @@ if __name__ == "__main__":
     ax1.plot(mr_equity, label="Mean Reversion", linewidth=3, linestyle="--")
     ax1.plot(adaptive_equity, label="Adaptive", linewidth=3)
     ax1.plot(bh_equity, label="Buy & Hold", linewidth=3)
+    ax1.plot(vote_equity, label="Voting Strategy", linewidth=3)
+    ax1.plot(council_equity, label="Strategy Council", linewidth=3)
 
     ax1.axhline(y=10000, linestyle="--", color="black")
 
@@ -1048,7 +1177,11 @@ if __name__ == "__main__":
             mr_returns,
             ad_returns
         ])
-
+    if corr_matrix is not None:
+        print("\nStrategy Correlation Matrix")
+        print(" MA   MR   AD")
+        for row in corr_matrix:
+            print(" ".join(f"{v:5.2f}" for v in row))
 
     plt.tight_layout()
     plt.show()
