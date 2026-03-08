@@ -1,4 +1,23 @@
 import math
+import numpy as np
+
+
+
+def calculate_atr(data, period=14):
+
+    high = data["High"]
+    low = data["Low"]
+    close = data["Close"]
+
+    tr = np.maximum(high - low,
+         np.maximum(abs(high - close.shift()),
+                    abs(low - close.shift())))
+
+    atr = tr.rolling(period).mean().iloc[-1]
+
+    return atr
+
+
 
 
 def run_backtest(data, strategy_function):
@@ -40,7 +59,14 @@ def run_backtest(data, strategy_function):
                 entry_price = current_price
 
             risk_per_trade = cash * 0.02
-            shares = max(1, int(risk_per_trade / current_price))
+
+            atr = calculate_atr(recent_data)
+
+
+            if atr is None or atr == 0:
+                shares = 1
+            else:
+                shares = max(1, int(risk_per_trade / atr))
 
             if shares > 0:
 

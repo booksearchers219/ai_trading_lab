@@ -16,7 +16,7 @@ def analyze_market(data, short_window=3, long_window=10):
     else:
         return "HOLD"
 
-def mean_reversion_strategy(data):
+def mean_reversion_strategy(data, threshold=-0.01):
 
     closes = data["Close"]
 
@@ -26,7 +26,7 @@ def mean_reversion_strategy(data):
     five_day_return = (closes.iloc[-1] - closes.iloc[-6]) / closes.iloc[-6]
     # print("5-day return:", five_day_return)
 
-    if five_day_return < -0.01:
+    if five_day_return < threshold:
         return "BUY"
 
     return "HOLD"

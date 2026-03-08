@@ -137,6 +137,12 @@ if __name__ == "__main__":
     parser.add_argument("--live", action="store_true",
                         help="Run live portfolio simulation")
 
+    parser.add_argument("--discover", action="store_true",
+                        help="Run automatic strategy discovery")
+
+    parser.add_argument("--evolve", action="store_true",
+                        help="Run evolutionary strategy search")
+
     args = parser.parse_args()
 
     ticker_list = []
@@ -153,6 +159,126 @@ if __name__ == "__main__":
         else:
             ticker_list = all_tickers
 
+    if args.discover:
+
+        print("\nRunning Strategy Discovery\n")
+
+        discovery_results = []
+
+        tickers = ["TSLA", "NVDA", "AAPL", "MSFT", "AMD"]
+
+        short_windows = range(3, 30)
+        long_windows = range(20, 200, 5)
+
+        for s in short_windows:
+            for l in long_windows:
+
+                if s >= l:
+                    continue
+
+
+                def ma_strategy(d, short=s, long=l):
+                    return analyze_market(d, short, long)
+
+
+                sharpes = []
+
+                for t in tickers:
+                    data = get_recent_data(t, args.window)
+
+                    equity, final_value, _, _, _ = run_backtest(data, ma_strategy)
+
+                    sharpe = calculate_sharpe(equity)
+
+                    sharpes.append(sharpe)
+
+                avg_sharpe = sum(sharpes) / len(sharpes)
+
+                discovery_results.append(
+                    ("MA", f"{s}/{l}", avg_sharpe)
+                )
+
+        discovery_results.sort(key=lambda x: x[2], reverse=True)
+
+        print("\nTop Discovered Strategies\n")
+
+        for strat, params, sharpe in discovery_results[:10]:
+            print(f"{strat:<3} {params:<8} Sharpe {sharpe:.2f}")
+
+        exit()
+
+if args.evolve:
+
+    import random
+
+    print("\nRunning Evolutionary Strategy Discovery\n")
+
+    tickers = ["TSLA", "NVDA", "AAPL", "MSFT", "AMD"]
+
+    population_size = 20
+    generations = 10
+
+    population = []
+
+    for _ in range(population_size):
+        short = random.randint(3, 30)
+        long = random.randint(short + 5, 120)
+
+        population.append((short, long))
+
+    for g in range(generations):
+
+        results = []
+
+        for short, long in population:
+
+            def ma_strategy(d, s=short, l=long):
+                return analyze_market(d, s, l)
+
+
+            sharpes = []
+
+            for t in tickers:
+                data = get_recent_data(t, args.window)
+
+                equity, final_value, _, _, _ = run_backtest(data, ma_strategy)
+
+                sharpe = calculate_sharpe(equity)
+
+                sharpes.append(sharpe)
+
+            avg_sharpe = sum(sharpes) / len(sharpes)
+
+            results.append((short, long, avg_sharpe))
+
+        results.sort(key=lambda x: x[2], reverse=True)
+
+        best = results[:5]
+
+        print(f"\nGeneration {g + 1} best strategies")
+
+        for s, l, sh in best:
+            print(f"MA {s}/{l} Sharpe {sh:.2f}")
+
+        population = []
+
+        for s, l, _ in best:
+
+            population.append((s, l))
+
+            for _ in range(3):
+                new_s = max(3, s + random.randint(-3, 3))
+                new_l = max(new_s + 5, l + random.randint(-10, 10))
+
+                population.append((new_s, new_l))
+
+    best = results[0]
+
+    print("\nFinal Best Strategy")
+
+    print(f"MA {best[0]}/{best[1]} Sharpe {best[2]:.2f}")
+
+    exit()
     ticker = args.ticker.upper()
 
     months = args.window
@@ -182,6 +308,12 @@ if __name__ == "__main__":
         ma_portfolio = []
         mr_portfolio = []
         ad_portfolio = []
+
+        portfolio_weights = {
+            "MA": 0.30,
+            "MR": 0.40,
+            "AD": 0.30
+        }
 
         ma_portfolio_curve = None
         mr_portfolio_curve = None
@@ -395,6 +527,15 @@ if __name__ == "__main__":
         print("MR total :", f"${sum(mr_portfolio):,.2f}")
         print("AD total :", f"${sum(ad_portfolio):,.2f}")
 
+        combined_portfolio = (
+                sum(ma_portfolio) * portfolio_weights["MA"] +
+                sum(mr_portfolio) * portfolio_weights["MR"] +
+                sum(ad_portfolio) * portfolio_weights["AD"]
+        )
+
+        print("\nCombined Strategy Portfolio")
+        print("Portfolio value:", f"${combined_portfolio:,.2f}")
+
         import subprocess
 
         best_run = max(sum(ma_portfolio), sum(mr_portfolio), sum(ad_portfolio))
@@ -485,6 +626,26 @@ if __name__ == "__main__":
         save_sharpe_leaderboard(results, args, timestamp, report_dir)
         save_regime_distribution(trend_total, side_total, args, timestamp, report_dir)
         save_regime_strategy_chart(trend_counts, side_counts, args, timestamp, report_dir)
+
+        combined_curve = [
+            ma * portfolio_weights["MA"] +
+            mr * portfolio_weights["MR"] +
+            ad * portfolio_weights["AD"]
+            for ma, mr, ad in zip(
+                ma_portfolio_curve,
+                mr_portfolio_curve,
+                ad_portfolio_curve
+            )
+        ]
+
+        save_portfolio_chart(
+            combined_curve,
+            None,
+            None,
+            args,
+            timestamp,
+            report_dir
+        )
 
         save_portfolio_chart(
             ma_portfolio_curve,
