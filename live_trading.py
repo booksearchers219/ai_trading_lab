@@ -6,6 +6,9 @@ from portfolio import Portfolio
 from strategies import analyze_market, mean_reversion_strategy, adaptive_strategy
 from data_utils import get_recent_data
 
+MAX_POSITIONS = 3
+MAX_RISK_PER_TRADE = 0.10
+
 SCAN_UNIVERSE = [
     "NVDA","AMD","TSLA","META","AAPL",
     "MSFT","GOOGL","AMZN","AVGO","NFLX"
@@ -29,13 +32,17 @@ def run_live_simulation():
         data_cache = {}
 
         for ticker in SCAN_UNIVERSE:
-            ticker_obj = yf.Ticker(ticker)
+            try:
+                ticker_obj = yf.Ticker(ticker)
+                live_data = ticker_obj.history(period="1d", interval="1m")
+            except Exception:
+                continue
 
-            live_data = ticker_obj.history(period="1d", interval="1m")
-
-            price = live_data["Close"].iloc[-1]
-
-            prices[ticker] = price
+            if not live_data.empty:
+                price = live_data["Close"].iloc[-1]
+                prices[ticker] = price
+            else:
+                continue
 
             data_cache[ticker] = get_recent_data(ticker, 1)
 
@@ -52,19 +59,32 @@ def run_live_simulation():
         best_ticker = None
         best_strategy = None
 
-        for ticker in SCAN_UNIVERSE:
-            data = data_cache[ticker]
+        for ticker in prices:
+
+            data = data_cache.get(ticker)
+            if data is None:
+                continue
+
             signals = {
                 "MA": analyze_market(data),
                 "MR": mean_reversion_strategy(data),
                 "AD": adaptive_strategy(data, adaptive_state)
             }
 
+            votes = list(signals.values())
+
+            if votes.count("BUY") >= 2:
+                combined_signal = "BUY"
+            elif votes.count("SELL") >= 2:
+                combined_signal = "SELL"
+            else:
+                combined_signal = "HOLD"
+
             for strat, signal in signals.items():
 
-                if signal == "BUY":
+                if signal in ("BUY", "SELL"):
 
-                    signal_list.append((strat, ticker))
+                    signal_list.append((strat, signal, ticker))
 
                     # basic scoring system
                     score = 1
@@ -85,8 +105,8 @@ def run_live_simulation():
         if not signal_list:
             print("None")
         else:
-            for strat, ticker in signal_list:
-                print(f"{strat:<3} {ticker}")
+            for strat, signal, ticker in signal_list:
+                print(f"{strat:<3} {signal:<4} {ticker}")
 
         if best_signal:
 
@@ -96,7 +116,7 @@ def run_live_simulation():
 
             portfolio_value = portfolio.total_value(prices)
 
-            risk_amount = portfolio_value * 0.10
+            risk_amount = portfolio_value * MAX_RISK_PER_TRADE
 
             shares = int(risk_amount / price)
 
@@ -105,7 +125,7 @@ def run_live_simulation():
             held = portfolio.positions.get(best_ticker, 0)
 
             # BUY if we don't own it
-            if best_signal == "BUY" and shares > 0 and held == 0 and open_positions < 3:
+            if best_signal == "BUY" and shares > 0 and held == 0 and open_positions < MAX_POSITIONS:
                 print(f"{best_strategy} BUY {shares} {best_ticker} @ {round(price, 2)}")
                 portfolio.buy(best_ticker, price, shares)
 
@@ -143,7 +163,7 @@ def run_live_simulation():
 
         leader = max(values, key=values.get)
 
-        print(f"\nLeader: {leader}")
+        print(f"\nLeader: {leader}  ${values[leader]:,.2f}")
 
         time.sleep(60)
 

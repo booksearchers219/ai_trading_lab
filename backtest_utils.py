@@ -25,14 +25,16 @@ def run_backtest(data, strategy_function):
             decision = strategy_function(recent_data)
 
         current_price = data["Close"].iloc[i]
+        slippage = current_price * 0.0005
+        current_price += slippage
 
         portfolio_value = cash + (shares * current_price)
         equity_curve.append(portfolio_value)
 
         if decision == "BUY" and shares == 0:
 
-            investment_amount = cash * 0.5
-            shares = int(investment_amount / current_price)
+            risk_per_trade = cash * 0.02
+            shares = int(risk_per_trade / current_price)
 
             if shares > 0:
 
@@ -56,6 +58,20 @@ def run_backtest(data, strategy_function):
             cash += trade_value - cost
             shares = 0
             hold_days = 0
+
+            sell_points.append(len(equity_curve))
+
+        # stop loss
+        if shares > 0 and current_price < entry_price * 0.95:
+
+            trade_value = shares * current_price
+            cost = trade_value * 0.001
+
+            profit = (current_price - entry_price) * shares
+            trade_profits.append(profit)
+
+            cash += trade_value - cost
+            shares = 0
 
             sell_points.append(len(equity_curve))
 

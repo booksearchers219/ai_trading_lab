@@ -64,35 +64,38 @@ def process_ticker(args):
 
     ticker, months = args
 
-    data = get_recent_data(ticker, months)
+    try:
+        data = get_recent_data(ticker, months)
 
-    regime = detect_regime(data)
+        if data is None or len(data) < 50:
+            return None
 
+        regime = detect_regime(data)
 
+        ma_equity, ma_final, _, _, _ = run_backtest(data, analyze_market)
+        mr_equity, mr_final, _, _, _ = run_backtest(data, mean_reversion_strategy)
+        ad_equity, ad_final, _, _, _ = run_backtest(data, adaptive_strategy)
 
-    ma_equity, ma_final, _, _, _ = run_backtest(data, analyze_market)
-    mr_equity, mr_final, _, _, _ = run_backtest(data, mean_reversion_strategy)
-    ad_equity, ad_final, _, _, _ = run_backtest(data, adaptive_strategy)
+        ma_sharpe = calculate_sharpe(ma_equity)
+        mr_sharpe = calculate_sharpe(mr_equity)
+        ad_sharpe = calculate_sharpe(ad_equity)
 
-    ma_sharpe = calculate_sharpe(ma_equity)
-    mr_sharpe = calculate_sharpe(mr_equity)
-    ad_sharpe = calculate_sharpe(ad_equity)
+        return (
+            ticker,
+            regime,
+            ma_final,
+            mr_final,
+            ad_final,
+            ma_sharpe,
+            mr_sharpe,
+            ad_sharpe,
+            ma_equity,
+            mr_equity,
+            ad_equity
+        )
 
-    return (
-        ticker,
-        regime,
-        ma_final,
-        mr_final,
-        ad_final,
-        ma_sharpe,
-        mr_sharpe,
-        ad_sharpe,
-        ma_equity,
-        mr_equity,
-        ad_equity
-    )
-
-
+    except Exception:
+        return None
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AI Trading Lab")
@@ -129,14 +132,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.live:
-        from live_trading import run_live_simulation
+    ticker_list = []
 
+    if args.live:
         run_live_simulation()
         exit()
 
     if args.scan == "sp500":
-
         all_tickers = get_sp500_tickers()
 
         if args.limit:
@@ -156,12 +158,15 @@ if __name__ == "__main__":
 
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
+        report_dir = "reports"
+        os.makedirs(report_dir, exist_ok=True)
+
         if args.report:
             os.makedirs("reports", exist_ok=True)
             report_dir = f"reports/{timestamp}"
             os.makedirs(report_dir, exist_ok=True)
 
-
+        cleanup_reports()
 
         results = []
         heatmap_data = []
@@ -190,11 +195,15 @@ if __name__ == "__main__":
 
             print("\nRunning parallel scan...\n")
 
-            pool = mp.Pool(mp.cpu_count())
+            pool = mp.Pool(min(8, mp.cpu_count()))
 
             job_args = [(ticker, months) for ticker in ticker_list]
 
+            import random
+            random.shuffle(job_args)
+
             results = pool.map(process_ticker, job_args)
+            results = [r for r in results if r is not None]
 
             for r in results:
 
@@ -249,10 +258,7 @@ if __name__ == "__main__":
 
                 results.append((ticker, regime, ma_final, mr_final, ad_final, ma_sharpe, mr_sharpe, ad_sharpe))
 
-                if regime == "TRENDING":
-                    trend_total += 1
-                else:
-                    side_total += 1
+
 
                 if ma_portfolio_curve is None:
                     ma_portfolio_curve = ma_equity
@@ -278,6 +284,7 @@ if __name__ == "__main__":
 
             writer.writerow([
                 "Ticker",
+                "Regime",
                 "MA_Final",
                 "MR_Final",
                 "AD_Final",
@@ -346,6 +353,10 @@ if __name__ == "__main__":
         print(f"{'Moving Average':<18}: {ma_wins}")
         print(f"{'Mean Reversion':<18}: {mr_wins}")
         print(f"{'Adaptive':<18}: {ad_wins}")
+
+        if not args.report:
+            report_dir = "reports"
+            os.makedirs(report_dir, exist_ok=True)
 
         save_strategy_dominance(ma_wins, mr_wins, ad_wins, args, timestamp, report_dir)
 
@@ -557,12 +568,6 @@ if __name__ == "__main__":
     print("Avg Trade:", round(ma_avg, 2))
     print("Profit Factor:", round(ma_pf, 2))
 
-    print("\nMean Reversion")
-    print("Trades:", len(mr_profits))
-    print("Win Rate:", round(mr_wr * 100, 1), "%")
-    print("Avg Trade:", round(mr_avg, 2))
-    print("Profit Factor:", round(mr_pf, 2))
-
     print("\nAdaptive")
     print("Trades:", len(ad_profits))
     print("Win Rate:", round(ad_wr * 100, 1), "%")
@@ -738,5 +743,5 @@ if __name__ == "__main__":
     ])
 
 
-plt.tight_layout()
-plt.show()
+    plt.tight_layout()
+    plt.show()
