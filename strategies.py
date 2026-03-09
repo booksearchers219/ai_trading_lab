@@ -103,7 +103,7 @@ def strategy_vote(signals):
     if buy_votes > sell_votes and buy_votes >= max(2, len(signals)//2 + 1):
         return "BUY"
 
-    if sell_votes > buy_votes and sell_votes >= 2:
+    if sell_votes > buy_votes and sell_votes >= max(2, len(signals)//2 + 1):
         return "SELL"
 
     return "HOLD"
