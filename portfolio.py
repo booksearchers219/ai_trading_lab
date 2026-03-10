@@ -18,7 +18,10 @@ class Portfolio:
             # store entry price
             self.entry_prices[ticker] = price
 
+            from datetime import datetime
+
             self.trade_log.append({
+                "time": datetime.now().strftime("%H:%M:%S"),
                 "action": "BUY",
                 "ticker": ticker,
                 "price": price,
