@@ -30,6 +30,51 @@ SCAN_UNIVERSE = [
     "MSFT","GOOGL","AMZN","AVGO","NFLX"
 ]
 
+def compute_sector_flow(prices, data_cache):
+
+    sectors = {
+        "AI": ["NVDA","AMD","AVGO"],
+        "TECH": ["AAPL","MSFT"],
+        "MEDIA": ["META","GOOGL","NFLX"]
+    }
+
+    sector_scores = {}
+
+    for sector, tickers in sectors.items():
+
+        changes = []
+
+        for ticker in tickers:
+
+            data = data_cache.get(ticker)
+            price = prices.get(ticker)
+
+            if data is None or price is None:
+                continue
+
+            try:
+                prev_close = data["Close"].iloc[-2]
+                pct = (price - prev_close) / prev_close
+                changes.append(pct)
+            except Exception:
+                continue
+
+        if not changes:
+            sector_scores[sector] = ("UNKNOWN", 0)
+            continue
+
+        avg = sum(changes) / len(changes)
+
+        if avg > 0.01:
+            label = "🟢 STRONG"
+        elif avg < -0.01:
+            label = "🔴 WEAK"
+        else:
+            label = "🟡 MIXED"
+
+        sector_scores[sector] = (label, avg)
+
+    return sector_scores
 
 def run_live_simulation():
 
@@ -334,7 +379,7 @@ def run_live_simulation():
                     else:
                         accel_symbol = "→"
 
-                    acceleration.append((ticker, accel_symbol))
+
 
                     if accel_symbol == "↑↑" and vol > 2:
                         breakout_radar.append(ticker)
@@ -605,34 +650,49 @@ def run_live_simulation():
         print(vol_row)
         print()
 
+        sectors = compute_sector_flow(prices, data_cache)
+
+        print("\nCAPITAL FLOW")
+        print("------------")
+
+        for sector, (label, pct) in sectors.items():
+            pct_str = f"{pct * 100:+.2f}%"
+            print(f"{sector:<7} {label:<10} {pct_str}")
+
         print("\nSTRATEGY MATRIX")
         print("---------------")
 
         print(f"{'':8} {'MA':6} {'MR':6} {'AD':6}")
 
+        sorted_matrix = []
+
         for ticker, sigs in strategy_matrix.items():
+
             ma = sigs.get("MA", "-")
             mr = sigs.get("MR", "-")
             ad = sigs.get("AD", "-")
 
-            print(f"{ticker:8} {ma:6} {mr:6} {ad:6}")
+            score = 0
 
-        terminal_width = shutil.get_terminal_size().columns - 5
+            if mr == "BUY":
+                score += 1
+            if ad == "BUY":
+                score += 1
+            if mr == "SELL":
+                score -= 1
+            if ad == "SELL":
+                score -= 1
 
-        row = ""
+            sorted_matrix.append((score, ticker, ma, mr, ad))
 
-        for line in signal_debug:
+        sorted_matrix.sort(reverse=True)
 
-            block = f"{line:<28}"
+        for score, ticker, ma, mr, ad in sorted_matrix:
+            agree = "⚡" if (mr == ad and mr in ("BUY", "SELL")) else ""
 
-            if len(row) + len(block) > terminal_width:
-                print(row)
-                row = block
-            else:
-                row += block
+            print(f"{ticker:8} {ma:6} {mr:6} {ad:6} {agree}")
 
-        if row:
-            print(row)
+
 
         for strat,signal,ticker,vote_strength,vote_details in signal_list:
 
@@ -930,6 +990,7 @@ def run_live_simulation():
         })
 
         time.sleep(60)
+
 
 
 if __name__ == "__main__":
