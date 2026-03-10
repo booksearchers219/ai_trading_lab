@@ -13,7 +13,7 @@ from trade_charts import generate_trade_chart
 from trade_logger import log_trade
 from leaderboard import print_leaderboard
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 
 
@@ -93,6 +93,7 @@ def run_live_simulation():
 
         print("Time:", now.strftime("%H:%M:%S"), "ET")
         print(f"Market: {market_status}  ({hours}h {minutes}m remaining)")
+        print()
 
         prices = {}
 
@@ -467,21 +468,7 @@ def run_live_simulation():
 
             print(f"\nUnrealized P/L: ${total_pnl:,.2f}")
 
-            print("\nRECENT TRADES")
-            print("-------------")
 
-            recent_trades = portfolio.trade_log[-5:]  # last 5 trades
-
-            if not recent_trades:
-                print("None")
-            else:
-                for trade in recent_trades:
-                    action = trade["action"]
-                    ticker = trade["ticker"]
-                    price = trade["price"]
-                    shares = trade["shares"]
-
-                    print(f"{action:<4} {ticker:<5} {shares} @ {price:.2f}")
 
             print("\nRECENT TRADES")
             print("-------------")
