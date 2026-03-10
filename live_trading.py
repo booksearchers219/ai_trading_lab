@@ -11,11 +11,10 @@ from strategies import analyze_market, mean_reversion_strategy, adaptive_strateg
 from strategies import regime_history
 from trade_charts import generate_trade_chart
 from trade_logger import log_trade
-from leaderboard import print_leaderboard
 import math
 from datetime import datetime, timedelta
 import pytz
-
+import shutil
 
 MAX_POSITIONS = 6
 MAX_RISK_PER_TRADE = 0.05
@@ -69,6 +68,7 @@ def run_live_simulation():
         os.system("clear")
 
         print("========== AI TRADING LAB ==========")
+        print("-" * shutil.get_terminal_size().columns)
 
         eastern = pytz.timezone("US/Eastern")
         now = datetime.now(eastern)
@@ -164,10 +164,59 @@ def run_live_simulation():
 
         print()
 
+        print("TOP MOVERS")
+        print("----------")
+
+        volatility_data = []
+
+        movers = []
+
+        for ticker in prices:
+
+            data = data_cache.get(ticker)
+
+            if data is None:
+                continue
+
+            try:
+                prev_close = data["Close"].iloc[-2]
+                current = prices[ticker]
+
+                pct_move = ((current - prev_close) / prev_close) * 100
+                movers.append((ticker, pct_move))
+
+            except Exception:
+                continue
+
+        # sort biggest movers
+        movers.sort(key=lambda x: abs(x[1]), reverse=True)
+
+        mover_row = ""
+
+        for ticker, pct in movers[:5]:
+            sign = "+" if pct >= 0 else ""
+            mover_row += f"{ticker}:{sign}{pct:.2f}%   "
+
+        print(mover_row)
+        print()
+
+
 
         signal_list = []
         pending_signals = []
         confirmed_signals = []
+
+        signal_debug = []
+        trade_filters = []
+
+
+        breadth_buy = 0
+        breadth_sell = 0
+        breadth_hold = 0
+        acceleration = []
+        breakout_radar = []
+        liquidity_spikes = []
+        trend_strength = []
 
 
         market_regime = "UNKNOWN"
@@ -198,11 +247,114 @@ def run_live_simulation():
                 continue
 
             data = data_cache.get(ticker)
+
             if data is None:
                 continue
 
+            try:
+                volume = data["Volume"]
+
+                if len(volume) > 10:
+                    recent = volume.iloc[-1]
+                    avg = volume.tail(10).mean()
+
+                    if avg > 0 and recent > avg * 2:
+                        liquidity_spikes.append(ticker)
+
+            except Exception:
+                pass
+
+            if data is None:
+                continue
+
+            try:
+                returns = data["Close"].pct_change().dropna()
+                vol = returns.std() * 100
+                volatility_data.append((ticker, vol))
+
+                try:
+                    closes = data["Close"]
+
+                    # ACCELERATION CALCULATION
+                    m1 = closes.iloc[-1] - closes.iloc[-2]
+                    m2 = closes.iloc[-2] - closes.iloc[-3]
+
+                    accel = m1 - m2
+
+                    if accel > 0.5:
+                        accel_symbol = "↑↑"
+                    elif accel > 0:
+                        accel_symbol = "↑"
+                    elif accel < -0.5:
+                        accel_symbol = "↓↓"
+                    else:
+                        accel_symbol = "→"
+
+                    acceleration.append((ticker, accel_symbol))
+
+                    # TREND STRENGTH CALCULATION
+                    try:
+                        ma5 = closes.tail(5).mean()
+                        ma10 = closes.tail(10).mean()
+                        ma20 = closes.tail(20).mean()
+
+                        score = 0
+
+                        if ma5 > ma10:
+                            score += 1
+                        if ma10 > ma20:
+                            score += 1
+                        if closes.iloc[-1] > ma5:
+                            score += 1
+
+                        if score == 3:
+                            symbol = "↑↑↑"
+                        elif score == 2:
+                            symbol = "↑↑"
+                        elif score == 1:
+                            symbol = "↑"
+                        else:
+                            symbol = "→"
+
+                        trend_strength.append((ticker, symbol))
+
+                    except Exception:
+                        pass
+
+                    accel = m1 - m2
+
+                    if accel > 0.5:
+                        accel_symbol = "↑↑"
+                    elif accel > 0:
+                        accel_symbol = "↑"
+                    elif accel < -0.5:
+                        accel_symbol = "↓↓"
+                    else:
+                        accel_symbol = "→"
+
+                    acceleration.append((ticker, accel_symbol))
+
+                    if accel_symbol == "↑↑" and vol > 2:
+                        breakout_radar.append(ticker)
+
+                except Exception:
+                    pass
+
+            except Exception:
+                pass
+
             regime = regime_history(data)[-1]
-            regime_row += f"{ticker}:{regime:<10}"
+
+            if regime == "TRENDING":
+                symbol = "🟢"
+            elif regime == "SIDEWAYS":
+                symbol = "🟡"
+            elif regime == "REVERSAL":
+                symbol = "🔴"
+            else:
+                symbol = "⚪"
+
+            regime_row += f"{ticker} {symbol} {regime:<10}  "
 
             signals = {}
 
@@ -221,6 +373,13 @@ def run_live_simulation():
 
             votes = list(signals.values())
 
+            vote_details = signals.copy()
+
+            debug_line = f"{ticker} "
+            for strat_name, vote in signals.items():
+                debug_line += f"{strat_name}:{vote} "
+            signal_debug.append(debug_line)
+
             buy_votes = votes.count("BUY")
             sell_votes = votes.count("SELL")
 
@@ -236,29 +395,243 @@ def run_live_simulation():
                 vote_strength = sell_votes
 
 
-            if combined_signal in ("BUY","SELL"):
-                signal_list.append(("COUNCIL",combined_signal,ticker,vote_strength))
+            if combined_signal == "BUY":
+                breadth_buy += 1
+            elif combined_signal == "SELL":
+                breadth_sell += 1
+            else:
+                breadth_hold += 1
+
+            if combined_signal in ("BUY", "SELL"):
+                signal_list.append(("COUNCIL", combined_signal, ticker, vote_strength, vote_details))
 
 
 
-        active_keys = {(ticker,signal) for _,signal,ticker,_ in signal_list}
+        active_keys = {(ticker,signal) for _,signal,ticker,_,_ in signal_list}
 
         for key in list(signal_history.keys()):
             if key not in active_keys:
                 signal_history.pop(key)
 
+        print("\nREGIMES")
+        print("-------")
         print(regime_row)
 
-        for strat,signal,ticker,vote_strength in signal_list:
+        print("\nHEATMAP")
+        print("-------")
+
+        heat_row = ""
+
+        for ticker in prices:
+
+            data = data_cache.get(ticker)
+            if data is None:
+                continue
+
+            try:
+                prev_close = data["Close"].iloc[-2]
+                current = prices[ticker]
+
+                pct_move = ((current - prev_close) / prev_close) * 100
+
+                if pct_move > 1:
+                    color = "🟢"
+                elif pct_move < -1:
+                    color = "🔴"
+                else:
+                    color = "🟡"
+
+                heat_row += f"{ticker}:{color}{pct_move:+.2f}%  "
+
+            except Exception:
+                continue
+
+        print(heat_row)
+        print()
+
+        print("\nBREADTH")
+        print("-------")
+        print(f"BUY:{breadth_buy}   SELL:{breadth_sell}   HOLD:{breadth_hold}")
+
+        total = breadth_buy + breadth_sell + breadth_hold
+
+        if total > 0:
+            bull_pct = breadth_buy / total
+            bear_pct = breadth_sell / total
+            neutral_pct = breadth_hold / total
+
+            bull_bar = "█" * int(bull_pct * 10) + "░" * (10 - int(bull_pct * 10))
+            bear_bar = "█" * int(bear_pct * 10) + "░" * (10 - int(bear_pct * 10))
+            neutral_bar = "█" * int(neutral_pct * 10) + "░" * (10 - int(neutral_pct * 10))
+
+            print("\nMARKET HEALTH")
+            print("-------------")
+            print(f"Bullish {bull_bar} {bull_pct * 100:.0f}%")
+            print(f"Bearish {bear_bar} {bear_pct * 100:.0f}%")
+            print(f"Neutral {neutral_bar} {neutral_pct * 100:.0f}%")
+
+        total_signals = breadth_buy + breadth_sell + breadth_hold
+
+        if total_signals > 0:
+            sentiment = breadth_buy / total_signals
+        else:
+            sentiment = 0
+
+        bars = int(sentiment * 10)
+        meter = "█" * bars + "░" * (10 - bars)
+
+        avg_vol = 0
+
+        if volatility_data:
+            avg_vol = sum(v for _, v in volatility_data) / len(volatility_data)
+
+        pressure_score = breadth_buy - breadth_sell - (avg_vol * 0.5)
+
+        if pressure_score > 2:
+            pressure = "BULLISH"
+        elif pressure_score < -2:
+            pressure = "BEARISH"
+        else:
+            pressure = "NEUTRAL"
+
+        print("\nACCELERATION")
+        print("------------")
+
+        accel_row = ""
+
+        for ticker, symbol in acceleration:
+            accel_row += f"{ticker}:{symbol:<3}  "
+
+        print(accel_row)
+
+        print("\nTREND STRENGTH")
+        print("--------------")
+
+        row = ""
+
+        for ticker, symbol in trend_strength:
+            row += f"{ticker}:{symbol:<4}"
+
+        print(row)
+
+
+
+        print("\nBREAKOUT RADAR")
+        print("--------------")
+
+        if breakout_radar:
+            row = ""
+            for ticker in breakout_radar:
+                row += f"{ticker} 🚀  "
+            print(row)
+        else:
+            print("None")
+
+        print("\nLIQUIDITY SPIKES")
+        print("----------------")
+
+        if liquidity_spikes:
+            row = ""
+            for ticker in liquidity_spikes:
+                row += f"{ticker} ⚡  "
+            print(row)
+        else:
+            print("None")
+
+
+
+
+
+
+        print("\nMARKET PRESSURE")
+        print("----------------")
+        print(pressure)
+
+        print("\nMARKET SENTIMENT")
+        print("----------------")
+        print(f"Bullish {meter} {sentiment * 100:.0f}%")
+
+        # AI MARKET PULSE
+        pulse_score = 0
+
+        # breadth contribution
+        pulse_score += breadth_buy - breadth_sell
+
+        # breakout signals
+        pulse_score += len(breakout_radar)
+
+        # acceleration signals
+        strong_accel = sum(1 for _, s in acceleration if s == "↑↑")
+        pulse_score += strong_accel
+
+        # normalize score
+        pulse_score = max(0, min(10, pulse_score + 5))
+
+        bars = "█" * pulse_score + "░" * (10 - pulse_score)
+
+        if pulse_score >= 7:
+            pulse_trend = "STRONG"
+        elif pulse_score >= 4:
+            pulse_trend = "MODERATE"
+        else:
+            pulse_trend = "WEAK"
+
+        if strong_accel >= 2:
+            momentum_state = "BUILDING"
+        elif strong_accel == 1:
+            momentum_state = "STABLE"
+        else:
+            momentum_state = "FLAT"
+
+        print("\nAI MARKET PULSE")
+        print("---------------")
+        print(f"Confidence {bars} {pulse_score * 10}%")
+        print(f"Trend Strength: {pulse_trend}")
+        print(f"Momentum: {momentum_state}")
+
+        print("\nVOLATILITY")
+        print("----------")
+
+        volatility_data.sort(key=lambda x: x[1], reverse=True)
+
+        vol_row = ""
+
+        for ticker, vol in volatility_data[:5]:
+            vol_row += f"{ticker}:{vol:.2f}%   "
+
+        print(vol_row)
+        print()
+
+        print("\nSIGNAL DEBUG")
+        print("------------")
+
+        terminal_width = shutil.get_terminal_size().columns - 5
+
+        row = ""
+
+        for line in signal_debug:
+
+            block = f"{line:<28}"
+
+            if len(row) + len(block) > terminal_width:
+                print(row)
+                row = block
+            else:
+                row += block
+
+        if row:
+            print(row)
+
+        for strat,signal,ticker,vote_strength,vote_details in signal_list:
 
             key = (ticker,signal)
 
             signal_history[key] = signal_history.get(key,0)+1
 
             if signal_history[key] >= SIGNAL_CONFIRM_CYCLES:
-                confirmed_signals.append((strat,signal,ticker,vote_strength))
+                confirmed_signals.append((strat,signal,ticker,vote_strength,vote_details))
             else:
-                pending_signals.append((strat,signal,ticker,vote_strength))
+                pending_signals.append((strat,signal,ticker,vote_strength,vote_details))
 
 
         print("\nPENDING SIGNALS")
@@ -267,7 +640,7 @@ def run_live_simulation():
         if not pending_signals:
             print("None")
 
-        for strat,signal,ticker,vote_strength in pending_signals:
+        for strat,signal,ticker,vote_strength,_ in pending_signals:
             count = signal_history.get((ticker,signal),0)
             print(f"{ticker:<6} {signal:<4} votes:{vote_strength} confirm:{count}/{SIGNAL_CONFIRM_CYCLES}")
 
@@ -278,7 +651,7 @@ def run_live_simulation():
         if not confirmed_signals:
             print("None")
 
-        for strat,signal,ticker,vote_strength in confirmed_signals:
+        for strat,signal,ticker,vote_strength,vote_details in confirmed_signals:
             print(f"{ticker:<6} {signal:<4} votes:{vote_strength}")
 
 
@@ -299,12 +672,13 @@ def run_live_simulation():
             print("None")
 
 
-        for strat,signal,ticker,vote_strength in confirmed_signals:
+        for strat,signal,ticker,vote_strength,_ in confirmed_signals:
 
             now = time.time()
 
             if ticker in cooldowns:
-                if now-cooldowns[ticker] < COOLDOWN_SECONDS:
+                if now - cooldowns[ticker] < COOLDOWN_SECONDS:
+                    trade_filters.append(f"{ticker}: cooldown")
                     continue
 
             price = prices.get(ticker)
@@ -369,6 +743,10 @@ def run_live_simulation():
             risk_amount = portfolio_value*MAX_RISK_PER_TRADE*confidence*risk_multiplier
             shares = int(risk_amount/price)
 
+            if signal == "BUY" and shares == 0:
+                trade_filters.append(f"{ticker}: position size too small")
+                continue
+
             open_positions = len(portfolio.positions)
 
 
@@ -381,6 +759,9 @@ def run_live_simulation():
             ):
 
                 print(f"{strat} BUY {shares} {ticker} @ {round(price,2)}")
+
+                reason = " ".join([f"{k}={v}" for k, v in vote_details.items()])
+                print(f"Reason: {reason} ({vote_strength} votes)")
 
                 portfolio.buy(ticker,price,shares)
 
@@ -396,6 +777,9 @@ def run_live_simulation():
             elif signal == "SELL" and held > 0:
 
                 print(f"{strat} SELL {held} {ticker}")
+
+                reason = " ".join([f"{k}={v}" for k, v in vote_details.items()])
+                print(f"Reason: {reason} ({vote_strength} votes)")
 
                 portfolio.sell(ticker,price,held)
 
@@ -497,10 +881,23 @@ def run_live_simulation():
         strategy_equity["MR"] = portfolio_value
         strategy_equity["AD"] = portfolio_value
 
-        print_leaderboard(strategy_equity)
+        print("\nSTRATEGY LEADERBOARD")
+        print("--------------------")
+
+        leader_row = ""
+
+        for strat, equity in strategy_equity.items():
+            leader_row += f"{strat}:${equity:,.2f}   "
+
+        print(leader_row)
+
+
+
 
         print("\nSTRATEGY PERFORMANCE")
         print("--------------------")
+
+        perf_row = ""
 
         for strat, equity in strategy_equity.items():
             pnl = equity - 30000
@@ -508,7 +905,9 @@ def run_live_simulation():
 
             pnl_str = f"+{pnl_pct:.2f}%" if pnl_pct >= 0 else f"{pnl_pct:.2f}%"
 
-            print(f"{strat:<4} P/L: {pnl_str}")
+            perf_row += f"{strat}:{pnl_str}   "
+
+        print(perf_row)
 
         generate_equity_chart()
 

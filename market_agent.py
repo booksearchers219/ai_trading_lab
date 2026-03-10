@@ -19,7 +19,7 @@ from portfolio_state import save_state, load_state
 from signal_engine import generate_signals
 from risk_manager import calculate_position_size
 from dashboard import print_market, print_signals
-
+from trend_panel import print_trend_panel, print_market_breadth
 
 
 def get_live_price(ticker):
@@ -103,7 +103,25 @@ if __name__ == "__main__":
 
     data = get_recent_data(ticker, months)
 
+    # Trend panel data
+    spy_data = get_recent_data("SPY", 1)
+    nvda_data = get_recent_data("NVDA", 1)
+    amd_data = get_recent_data("AMD", 1)
+    tsla_data = get_recent_data("TSLA", 1)
+    meta_data = get_recent_data("META", 1)
+
+    symbol_data = {
+        "SPY": spy_data,
+        "NVDA": nvda_data,
+        "AMD": amd_data,
+        "TSLA": tsla_data,
+        "META": meta_data
+    }
+
     print(f"\nRunning Strategy Comparison on {ticker}\n")
+
+    print_trend_panel(symbol_data)
+    print_market_breadth(symbol_data)
 
     # Run strategies
     ma_equity, ma_final, ma_buys, ma_sells, ma_profits = run_backtest(data, analyze_market)

@@ -1,3 +1,9 @@
+
+
+
+
+
+
 def print_market(prices):
 
     print("MARKET")
