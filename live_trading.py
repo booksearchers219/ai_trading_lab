@@ -209,6 +209,8 @@ def run_live_simulation():
         signal_debug = []
         trade_filters = []
 
+        strategy_matrix = {}
+
 
         breadth_buy = 0
         breadth_sell = 0
@@ -372,8 +374,9 @@ def run_live_simulation():
 
 
             votes = list(signals.values())
-
             vote_details = signals.copy()
+
+            strategy_matrix[ticker] = signals
 
             debug_line = f"{ticker} "
             for strat_name, vote in signals.items():
@@ -602,8 +605,17 @@ def run_live_simulation():
         print(vol_row)
         print()
 
-        print("\nSIGNAL DEBUG")
-        print("------------")
+        print("\nSTRATEGY MATRIX")
+        print("---------------")
+
+        print(f"{'':8} {'MA':6} {'MR':6} {'AD':6}")
+
+        for ticker, sigs in strategy_matrix.items():
+            ma = sigs.get("MA", "-")
+            mr = sigs.get("MR", "-")
+            ad = sigs.get("AD", "-")
+
+            print(f"{ticker:8} {ma:6} {mr:6} {ad:6}")
 
         terminal_width = shutil.get_terminal_size().columns - 5
 

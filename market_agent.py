@@ -29,6 +29,41 @@ def get_live_price(ticker):
 
     return float(price)
 
+def compute_sector_strength(data):
+    sectors = {
+        "AI": ["NVDA", "AMD"],
+        "TECH": ["AAPL", "MSFT"],
+        "MEDIA": ["META", "GOOGL"]
+    }
+
+    sector_scores = {}
+
+    for sector, symbols in sectors.items():
+
+        changes = []
+
+        for s in symbols:
+            if s in data and len(data[s]) >= 2:
+                close = data[s]["Close"]
+                pct = (close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]
+                changes.append(pct)
+
+        if not changes:
+            sector_scores[sector] = "UNKNOWN"
+            continue
+
+        avg = sum(changes) / len(changes)
+
+        if avg > 0.01:
+            sector_scores[sector] = "🟢 STRONG"
+        elif avg < -0.01:
+            sector_scores[sector] = "🔴 WEAK"
+        else:
+            sector_scores[sector] = "🟡 MIXED"
+
+    return sector_scores
+
+
 
 if __name__ == "__main__":
 
@@ -81,7 +116,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-
     if args.live:
         run_live_simulation()
         exit()
@@ -122,6 +156,14 @@ if __name__ == "__main__":
 
     print_trend_panel(symbol_data)
     print_market_breadth(symbol_data)
+
+    sectors = compute_sector_strength(symbol_data)
+
+    print("\nSECTOR FLOW")
+    print("-----------")
+
+    for s, v in sectors.items():
+        print(f"{s:<7} {v}")
 
     # Run strategies
     ma_equity, ma_final, ma_buys, ma_sells, ma_profits = run_backtest(data, analyze_market)
