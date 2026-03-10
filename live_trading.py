@@ -4,48 +4,67 @@ import yfinance as yf
 
 from portfolio import Portfolio
 from strategies import analyze_market, mean_reversion_strategy, adaptive_strategy
+from portfolio_state import save_state, load_state
 from data_utils import get_recent_data
+from trade_logger import log_trade
+from trade_charts import generate_trade_chart
+from equity_logger import log_equity
+from equity_chart import generate_equity_chart
 
-MAX_POSITIONS = 3
-MAX_RISK_PER_TRADE = 0.10
+
+
+MAX_POSITIONS = 6
+MAX_RISK_PER_TRADE = 0.05
 
 SCAN_UNIVERSE = [
-    "NVDA","AMD","TSLA","META","AAPL",
-    "MSFT","GOOGL","AMZN","AVGO","NFLX"
+    "NVDA", "AMD", "TSLA", "META", "AAPL",
+    "MSFT", "GOOGL", "AMZN", "AVGO", "NFLX"
 ]
 
 
 def run_live_simulation():
-    portfolios = {
-        "MA": Portfolio(10000),
-        "MR": Portfolio(10000),
-        "AD": Portfolio(10000)
-    }
+    state = load_state()
+
+    if state:
+        print("Resuming previous session...")
+        portfolio = Portfolio(state["cash"])
+        portfolio.positions = state["positions"]
+
+    else:
+        print("Starting new session...")
+        portfolio = Portfolio(30000)
 
     adaptive_state = {}
 
     while True:
 
-
-
         prices = {}
         data_cache = {}
 
-        for ticker in SCAN_UNIVERSE:
-            try:
-                ticker_obj = yf.Ticker(ticker)
-                live_data = ticker_obj.history(period="1d", interval="1m")
-            except Exception:
-                continue
+        tickers = " ".join(SCAN_UNIVERSE)
 
-            if not live_data.empty:
-                price = live_data["Close"].iloc[-1]
-                prices[ticker] = price
-            else:
-                continue
+        try:
+            live_data = yf.download(
+                tickers,
+                period="1d",
+                interval="1m",
+                group_by="ticker",
+                progress=False
+            )
+        except Exception:
+            live_data = None
 
-            data_cache[ticker] = get_recent_data(ticker, 1)
+        if live_data is not None:
 
+            for ticker in SCAN_UNIVERSE:
+
+                try:
+                    price = live_data[ticker]["Close"].iloc[-1]
+                    prices[ticker] = float(price)
+                except Exception:
+                    continue
+
+                data_cache[ticker] = get_recent_data(ticker, 1)
         print("\nScanning market...")
 
         for t in SCAN_UNIVERSE:
@@ -54,10 +73,6 @@ def run_live_simulation():
 
         signal_list = []
 
-        best_score = 0
-        best_signal = None
-        best_ticker = None
-        best_strategy = None
 
         for ticker in prices:
 
@@ -73,31 +88,24 @@ def run_live_simulation():
 
             votes = list(signals.values())
 
-            if votes.count("BUY") >= 2:
+            buy_votes = votes.count("BUY")
+            sell_votes = votes.count("SELL")
+
+            combined_signal = "HOLD"
+            vote_strength = 0
+
+            if buy_votes >= 2:
                 combined_signal = "BUY"
-            elif votes.count("SELL") >= 2:
+                vote_strength = buy_votes
+
+            elif sell_votes >= 2:
                 combined_signal = "SELL"
-            else:
-                combined_signal = "HOLD"
+                vote_strength = sell_votes
 
-            for strat, signal in signals.items():
+            if combined_signal in ("BUY", "SELL"):
+                signal_list.append(("COUNCIL", combined_signal, ticker, vote_strength))
 
-                if signal in ("BUY", "SELL"):
 
-                    signal_list.append((strat, signal, ticker))
-
-                    # basic scoring system
-                    score = 1
-
-                    # mean reversion gets bonus
-                    if strat == "MR":
-                        score += 1
-
-                    if score > best_score:
-                        best_score = score
-                        best_signal = signal
-                        best_ticker = ticker
-                        best_strategy = strat
 
         print("\nSignals detected")
         print("----------------")
@@ -105,67 +113,95 @@ def run_live_simulation():
         if not signal_list:
             print("None")
         else:
-            for strat, signal, ticker in signal_list:
+            for strat, signal, ticker, vote_strength in signal_list:
                 print(f"{strat:<3} {signal:<4} {ticker}")
 
-        if best_signal:
+        # ---- INSERT STEP 3 RIGHT HERE ----
 
-            portfolio = portfolios[best_strategy]
+        for strat, signal, ticker, vote_strength in signal_list:
 
-            price = prices[best_ticker]
+            price = prices.get(ticker)
+
+            if price is None:
+                continue
 
             portfolio_value = portfolio.total_value(prices)
 
-            risk_amount = portfolio_value * MAX_RISK_PER_TRADE
+            confidence = vote_strength / 3
+            risk_amount = portfolio_value * MAX_RISK_PER_TRADE * confidence
 
             shares = int(risk_amount / price)
 
             open_positions = len(portfolio.positions)
 
-            held = portfolio.positions.get(best_ticker, 0)
+            held = portfolio.positions.get(ticker, 0)
 
-            # BUY if we don't own it
-            if best_signal == "BUY" and shares > 0 and held == 0 and open_positions < MAX_POSITIONS:
-                print(f"{best_strategy} BUY {shares} {best_ticker} @ {round(price, 2)}")
-                portfolio.buy(best_ticker, price, shares)
+            if signal == "BUY" and shares > 0 and held == 0 and open_positions < MAX_POSITIONS:
+                print(f"{strat} BUY {shares} {ticker} @ {round(price, 2)}")
+                portfolio.buy(ticker, price, shares)
+                log_trade("COUNCIL", ticker, "BUY", price, shares)
+                generate_trade_chart(ticker)
 
-            # SELL if we already own it
-            elif best_signal == "SELL" and held > 0:
-                print(f"{best_strategy} SELL {held} {best_ticker} @ {round(price, 2)}")
-                portfolio.sell(best_ticker, price, held)
+
+            elif signal == "SELL" and held > 0:
+                print(f"{strat} SELL {held} {ticker} @ {round(price, 2)}")
+                portfolio.sell(ticker, price, held)
+                log_trade("COUNCIL", ticker, "SELL", price, held)
 
         time.sleep(2)
-        # os.system("clear")
 
-        values = {}
+        value = portfolio.total_value(prices)
 
-        for name, portfolio in portfolios.items():
+        print(f"\nPortfolio Value: ${value:,.2f}")
 
-            values[name] = portfolio.total_value(prices)
+        shares = sum(portfolio.positions.values())
 
-            shares = sum(portfolio.positions.values())
+        if shares > 0:
+            status = "LONG"
+        elif shares < 0:
+            status = "SHORT"
+        else:
+            status = "CASH"
 
-            if shares > 0:
-                status = "LONG"
-            elif shares < 0:
-                status = "SHORT"
-            else:
-                status = "CASH"
+        print(f"Status: {status}")
 
-            print(f"{name:<3}  {status:<5}  shares:{shares:<4}  value:${values[name]:,.2f}")
+        if portfolio.positions:
+            print("Holdings:")
+            total_pnl = 0
 
-        print("\nLIVE STRATEGY LEADERBOARD\n")
+            for ticker, qty in portfolio.positions.items():
+                entry_price = portfolio.entry_prices.get(ticker, 0)
+                current_price = prices.get(ticker, 0)
 
-        if best_ticker:
-            print(f"{best_ticker}: {round(prices[best_ticker], 2)}")
+                pnl = (current_price - entry_price) * qty
+                total_pnl += pnl
 
-        print("-" * 40)
+                pnl_str = f"+${pnl:,.2f}" if pnl >= 0 else f"-${abs(pnl):,.2f}"
 
-        leader = max(values, key=values.get)
+                print(f"   {ticker:<5} {qty:>4}  entry:{entry_price:.2f}  now:{current_price:.2f}  P/L:{pnl_str}")
 
-        print(f"\nLeader: {leader}  ${values[leader]:,.2f}")
+            print(f"\nUnrealized P/L: ${total_pnl:,.2f}")
+
+        else:
+            print("No open positions")
+
+        log_equity({"MA": value, "MR": value, "AD": value})
+        generate_equity_chart()
+
+
+
+        # Save portfolio state
+
+
+        save_state({
+            "cash": portfolio.cash,
+            "positions": portfolio.positions
+        })
+
+
 
         time.sleep(60)
+
 
 if __name__ == "__main__":
     run_live_simulation()

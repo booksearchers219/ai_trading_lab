@@ -15,7 +15,7 @@ from strategies import *
 from utils.reporting import max_drawdown, rolling_sharpe
 from utils.strategy_loader import load_best_strategies
 from visualization import *
-
+from portfolio_state import save_state, load_state
 
 def get_live_price(ticker):
     data = yf.Ticker(ticker)
@@ -76,7 +76,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    ticker_list = []
 
     if args.live:
         run_live_simulation()
