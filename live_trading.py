@@ -18,7 +18,7 @@ import shutil
 import json
 
 
-MAX_POSITIONS = 5
+MAX_POSITIONS = 40
 MAX_RISK_PER_TRADE = 0.05
 MAX_TICKER_ALLOCATION = 0.20
 STOP_LOSS_PCT = 0.05
@@ -126,6 +126,8 @@ def run_live_simulation(universe=None, crypto_universe=None):
     strategy_memory = load_strategy_memory()
 
     strategy_weights = regime_weights["UNKNOWN"].copy()
+
+    state = load_state()
 
     state = load_state()
 
@@ -286,6 +288,13 @@ def run_live_simulation(universe=None, crypto_universe=None):
         print(row)
 
         print()
+
+        # repair missing entry prices
+        for ticker in portfolio.positions:
+            if ticker not in portfolio.entry_prices or portfolio.entry_prices[ticker] == 0:
+                p = prices.get(ticker)
+                if p:
+                    portfolio.entry_prices[ticker] = p
 
         print("TOP MOVERS")
         print("----------")
@@ -901,7 +910,7 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
             if held > 0:
 
-                entry_price = portfolio.entry_prices.get(ticker, 0)
+                entry_price = portfolio.entry_prices.get(ticker, price)
                 stop_price = entry_price * (1 - STOP_LOSS_PCT)
 
                 if price <= stop_price:
@@ -1072,7 +1081,10 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
             for ticker, qty in portfolio.positions.items():
                 entry_price = portfolio.entry_prices.get(ticker, 0)
-                current_price = prices.get(ticker, 0)
+                current_price = prices.get(ticker)
+
+                if current_price is None:
+                    continue
 
                 pnl = (current_price - entry_price) * qty
                 total_pnl += pnl
