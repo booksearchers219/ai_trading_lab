@@ -15,6 +15,8 @@ import math
 from datetime import datetime, timedelta
 import pytz
 import shutil
+import json
+
 
 MAX_POSITIONS = 5
 MAX_RISK_PER_TRADE = 0.05
@@ -29,6 +31,29 @@ SCAN_UNIVERSE = [
     "NVDA", "AMD", "TSLA", "META", "AAPL",
     "MSFT", "GOOGL", "AMZN", "AVGO", "NFLX"
 ]
+
+MEMORY_FILE = "strategy_memory.json"
+
+def load_strategy_memory():
+
+    if not os.path.exists(MEMORY_FILE):
+        return {
+            "MA": {"pnl": 0, "trades": 0},
+            "MR": {"pnl": 0, "trades": 0},
+            "AD": {"pnl": 0, "trades": 0}
+        }
+
+    with open(MEMORY_FILE) as f:
+        return json.load(f)
+
+
+def save_strategy_memory(memory):
+
+    with open(MEMORY_FILE, "w") as f:
+        json.dump(memory, f, indent=2)
+
+
+
 
 
 def compute_sector_flow(prices, data_cache):
@@ -92,6 +117,8 @@ def run_live_simulation(universe=None):
         "SIDEWAYS": {"MA": 0.6, "MR": 1.8, "AD": 1.2},
         "UNKNOWN": {"MA": 0.8, "MR": 0.8, "AD": 1.6}
     }
+
+    strategy_memory = load_strategy_memory()
 
     strategy_weights = regime_weights["UNKNOWN"].copy()
 
@@ -934,6 +961,26 @@ def run_live_simulation(universe=None):
 
                 portfolio.sell(ticker, price, held)
 
+                portfolio.sell(ticker, price, held)
+
+                # --- strategy learning memory ---
+                entry = portfolio.entry_prices.get(ticker, price)
+                pnl = (price - entry) * held
+
+                if strat in strategy_memory:
+                    strategy_memory[strat]["pnl"] += pnl
+                    strategy_memory[strat]["trades"] += 1
+                    save_strategy_memory(strategy_memory)
+                # --------------------------------
+
+                position_scores.pop(ticker, None)
+
+                log_trade("COUNCIL", ticker, "SELL", price, held)
+
+                cooldowns[ticker] = time.time()
+
+                high_prices.pop(ticker, None)
+
                 position_scores.pop(ticker, None)
 
                 log_trade("COUNCIL", ticker, "SELL", price, held)
@@ -1049,13 +1096,18 @@ def run_live_simulation(universe=None):
         strategy_equity["MR"] = portfolio_value
         strategy_equity["AD"] = portfolio_value
 
-        # Simple adaptive weighting
-        total = sum(strategy_equity.values())
+        # Strategy learning allocation
+        for strat, stats in strategy_memory.items():
 
-        for strat in strategy_equity:
-            performance = strategy_equity[strat] / total
+            trades = stats["trades"]
+            pnl = stats["pnl"]
 
-            strategy_weights[strat] = max(0.5, min(2.0, performance * 3))
+            if trades == 0:
+                score = 1
+            else:
+                score = pnl / trades
+
+            strategy_weights[strat] = max(0.5, min(2.5, 1 + score / 100))
 
         print("\nSTRATEGY LEADERBOARD")
         print("--------------------")
