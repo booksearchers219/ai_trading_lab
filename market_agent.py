@@ -46,7 +46,31 @@ def print_opportunity_heatmap(signals):
         bar = "█" * score
         print(f"{ticker:<5} {bar:<5} {score}")
 
+def print_signal_radar(signals):
 
+    print("\nSIGNAL RADAR")
+    print("------------")
+
+    if not signals:
+        print("None")
+        return
+
+    counts = {}
+
+    for s in signals:
+
+        ticker = s["ticker"]
+        action = s["signal"]
+
+        key = (ticker, action)
+
+        counts[key] = counts.get(key, 0) + 1
+
+    ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+
+    for (ticker, action), score in ranked[:10]:
+
+        print(f"{ticker:<6} {action:<4} strength {score}")
 
 def load_watchlist(filename="watchlist.txt"):
 
@@ -192,7 +216,22 @@ def print_strategy_agreement(symbol_data):
         print("LOW AGREEMENT ⚠️")
 
 
+def compute_strategy_allocation(ma_sharpe, mr_sharpe, ad_sharpe):
 
+    scores = {
+        "MA": max(ma_sharpe, 0),
+        "MR": max(mr_sharpe, 0),
+        "AD": max(ad_sharpe, 0)
+    }
+
+    total = sum(scores.values())
+
+    if total == 0:
+        return {"MA": 0.33, "MR": 0.33, "AD": 0.33}
+
+    weights = {k: v / total for k, v in scores.items()}
+
+    return weights
 
 
 def print_market_sentiment(symbol_data):
@@ -473,7 +512,9 @@ if __name__ == "__main__":
     print_momentum_leaders(leaders)
 
     signals = generate_signals(symbol_data)
+
     print_opportunity_heatmap(signals)
+    print_signal_radar(signals)
 
     sectors = compute_sector_strength(symbol_data)
 
@@ -524,9 +565,22 @@ if __name__ == "__main__":
     ma_sharpe = calculate_sharpe(ma_equity)
     mr_sharpe = calculate_sharpe(mr_equity)
     adaptive_sharpe = calculate_sharpe(adaptive_equity)
+    weights = compute_strategy_allocation(
+        ma_sharpe,
+        mr_sharpe,
+        adaptive_sharpe
+    )
+
+    print("\nSTRATEGY ALLOCATION")
+    print("-------------------")
+
+    for k, v in sorted(weights.items(), key=lambda x: x[1], reverse=True):
+        print(f"{k:<3} {v * 100:5.1f}%")
+
     vote_sharpe = calculate_sharpe(vote_equity)
     council_sharpe = calculate_sharpe(council_equity)
     vol_sharpe = calculate_sharpe(vol_equity)
+
 
 
 
