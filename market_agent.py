@@ -20,6 +20,9 @@ from signal_engine import generate_signals
 from risk_manager import calculate_position_size
 from dashboard import print_market, print_signals
 from trend_panel import print_trend_panel, print_market_breadth
+from strategy_stats import record_trade, print_strategy_stats
+from momentum_scanner import find_momentum_leaders, print_momentum_leaders
+
 
 
 def print_opportunity_heatmap(signals):
@@ -75,6 +78,11 @@ TOP10 = [
     "NFLX"
 ]
 
+DISCOVERY_UNIVERSE = [
+    "NVDA","AMD","AVGO","TSLA","META","AAPL","MSFT",
+    "GOOGL","AMZN","NFLX","SMCI","ARM","INTC",
+    "MU","QCOM","ADBE","CRM","ORCL","NOW","SHOP"
+]
 
 def get_live_price(ticker):
     data = yf.Ticker(ticker)
@@ -223,6 +231,56 @@ def print_market_sentiment(symbol_data):
         else:
             print("BEARISH ❄️")
 
+def print_market_pulse(data, symbol_data, leaders):
+
+    print("\nAI TRADING LAB")
+    print("--------------")
+
+    # Market regime
+    regimes = regime_history(data)
+    regime = regimes[-1] if regimes else "UNKNOWN"
+
+    if regime == "TRENDING":
+        regime_label = "TRENDING 📈"
+    else:
+        regime_label = "SIDEWAYS 🔄"
+
+    # Market sentiment
+    score = 0
+    for symbol, df in symbol_data.items():
+        if len(df) < 2:
+            continue
+
+        close = df["Close"]
+        pct = (close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]
+
+        if pct > 0.01:
+            score += 1
+        elif pct < -0.01:
+            score -= 1
+
+    if score >= 3:
+        sentiment = "BULLISH 🔥🔥🔥"
+    elif score >= 1:
+        sentiment = "BULLISH 🔥"
+    elif score == 0:
+        sentiment = "NEUTRAL ⚖️"
+    elif score <= -3:
+        sentiment = "BEARISH ❄️❄️❄️"
+    else:
+        sentiment = "BEARISH ❄️"
+
+    # Top stock
+    if leaders:
+        top_stock, pct = leaders[0]
+        top_stock_label = f"{top_stock} {pct*100:+.2f}%"
+    else:
+        top_stock_label = "None"
+
+    print(f"REGIME        {regime_label}")
+    print(f"SENTIMENT     {sentiment}")
+    print(f"TOP STOCK     {top_stock_label}")
+
 
 def print_strategy_confidence(symbol_data):
 
@@ -268,7 +326,7 @@ def print_strategy_confidence(symbol_data):
 
 
 
-def print_momentum_leaders(data):
+def print_watchlist_momentum(data):
 
     changes = []
 
@@ -400,13 +458,19 @@ if __name__ == "__main__":
     print(f"\nRunning Strategy Comparison on {ticker}\n")
     print("=" * 70)
 
+    leaders = find_momentum_leaders(DISCOVERY_UNIVERSE, top_n=5)
+    print_market_pulse(data, symbol_data, leaders)
+
     print_trend_panel(symbol_data)
     print_market_breadth(symbol_data)
     print_market_regime(data)
     print_market_sentiment(symbol_data)
-    print_momentum_leaders(symbol_data)
+    print_watchlist_momentum(symbol_data)
     print_strategy_confidence(symbol_data)
     print_strategy_agreement(symbol_data)
+
+    leaders = find_momentum_leaders(DISCOVERY_UNIVERSE, top_n=5)
+    print_momentum_leaders(leaders)
 
     signals = generate_signals(symbol_data)
     print_opportunity_heatmap(signals)
@@ -586,6 +650,19 @@ if __name__ == "__main__":
     for name, final, sharpe, dd in strategy_table:
         print(f"{name:<12}{final:>12.2f}{sharpe:>10.2f}{dd * 100:>9.2f}%")
 
+    # Record trades for strategy intelligence
+
+    for p in ma_profits:
+        record_trade("MA", p)
+
+    for p in mr_profits:
+        record_trade("MR", p)
+
+    for p in ad_profits:
+        record_trade("AD", p)
+
+    print_strategy_stats()
+
     print("\nMoving Average")
     print("Trades:", len(ma_profits))
     print("Win Rate:", round(ma_wr * 100, 1), "%")
@@ -641,6 +718,8 @@ if __name__ == "__main__":
     regimes = regime_history(data)[50:]
 
     ax0.plot(price_series, color="black", linewidth=2, label="Price")
+
+
 
     # Regime shading
     for i in range(len(regimes) - 1):
