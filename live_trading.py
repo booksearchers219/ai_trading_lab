@@ -102,9 +102,14 @@ def compute_sector_flow(prices, data_cache):
     return sector_scores
 
 
-def run_live_simulation(universe=None):
+def run_live_simulation(universe=None, crypto_universe=None):
     if universe is None:
         universe = SCAN_UNIVERSE
+
+    if crypto_universe is None:
+        crypto_universe = []
+
+    all_symbols = universe + crypto_universe
 
     strategy_equity = {
         "MA": 30000,
@@ -197,8 +202,9 @@ def run_live_simulation(universe=None):
 
         if live_data is not None:
 
-            for ticker in universe:
+            for ticker in all_symbols:
                 try:
+                    data_cache[ticker] = get_recent_data(ticker, 1)
 
                     # Single ticker dataframe
                     if "Close" in live_data and not isinstance(live_data["Close"], yf.pandas.Series):
@@ -217,6 +223,38 @@ def run_live_simulation(universe=None):
                 except Exception:
                     continue
 
+            # Fetch crypto prices (batch)
+            if crypto_universe:
+
+                try:
+
+                    crypto_tickers = " ".join(crypto_universe)
+
+                    crypto_data = yf.download(
+                        crypto_tickers,
+                        period="5d",
+                        interval="5m",
+                        group_by="ticker",
+                        progress=False
+                    )
+
+                    for ticker in crypto_universe:
+
+                        try:
+
+                            if ticker in crypto_data:
+
+                                price = crypto_data[ticker]["Close"].iloc[-1]
+
+                                if price == price:  # avoid NaN
+                                    prices[ticker] = float(price)
+
+                        except Exception:
+                            continue
+
+                except Exception:
+                    pass
+
         current_time = time.time()
 
         if current_time - data_refresh_time > DATA_REFRESH_SECONDS:
@@ -234,7 +272,7 @@ def run_live_simulation(universe=None):
 
         row = ""
 
-        for t in universe:
+        for t in all_symbols:
 
             p = prices.get(t)
 
@@ -243,7 +281,7 @@ def run_live_simulation(universe=None):
             else:
                 cell = f"{t}:{p:.2f}"
 
-            row += f"{cell:<15}"
+            row += f"{cell:<18}"
 
         print(row)
 

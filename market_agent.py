@@ -108,6 +108,24 @@ DISCOVERY_UNIVERSE = [
     "MU","QCOM","ADBE","CRM","ORCL","NOW","SHOP"
 ]
 
+def load_crypto_watchlist(filename="crypto_watchlist.txt"):
+
+    tickers = []
+
+    try:
+        with open(filename, "r") as f:
+            for line in f:
+                t = line.strip().upper()
+                if t:
+                    tickers.append(t)
+
+    except FileNotFoundError:
+        print("crypto_watchlist.txt not found")
+        return []
+
+    return tickers
+
+
 def get_live_price(ticker):
     data = yf.Ticker(ticker)
 
@@ -453,13 +471,17 @@ if __name__ == "__main__":
         else:
             universe = load_watchlist()
 
+        crypto_universe = load_crypto_watchlist()
+        run_live_simulation(universe, crypto_universe)
+
         print("\nTrading Universe")
         print("----------------")
 
         for t in universe:
             print(t)
 
-        run_live_simulation(universe)
+        run_live_simulation(universe, crypto_universe)
+
         exit()
 
     ticker = args.ticker.upper()
