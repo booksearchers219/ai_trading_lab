@@ -22,6 +22,28 @@ from dashboard import print_market, print_signals
 from trend_panel import print_trend_panel, print_market_breadth
 
 
+def print_opportunity_heatmap(signals):
+    print("\nOPPORTUNITY HEATMAP")
+    print("-------------------")
+
+    if not signals:
+        print("None")
+        return
+
+    # count signals per ticker
+    counts = {}
+    for s in signals:
+        ticker = s["ticker"]
+        counts[ticker] = counts.get(ticker, 0) + 1
+
+    # sort strongest first
+    ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+
+    for ticker, score in ranked[:10]:
+        bar = "█" * score
+        print(f"{ticker:<5} {bar:<5} {score}")
+
+
 
 def load_watchlist(filename="watchlist.txt"):
 
@@ -385,6 +407,9 @@ if __name__ == "__main__":
     print_momentum_leaders(symbol_data)
     print_strategy_confidence(symbol_data)
     print_strategy_agreement(symbol_data)
+
+    signals = generate_signals(symbol_data)
+    print_opportunity_heatmap(signals)
 
     sectors = compute_sector_strength(symbol_data)
 

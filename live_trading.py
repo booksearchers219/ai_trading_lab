@@ -22,7 +22,8 @@ MAX_RISK_PER_TRADE = 0.05
 MAX_TICKER_ALLOCATION = 0.20
 STOP_LOSS_PCT = 0.05
 TRAILING_STOP_PCT = 0.05
-SIGNAL_CONFIRM_CYCLES = 3
+SIGNAL_CONFIRM_CYCLES = 2
+MIN_VOLATILITY = 0.3
 
 
 
@@ -90,11 +91,13 @@ def run_live_simulation(universe=None):
         "AD": 30000
     }
 
-    strategy_weights = {
-        "MA": 1.0,
-        "MR": 1.0,
-        "AD": 1.0
+    regime_weights = {
+        "TRENDING": {"MA": 1.8, "MR": 0.6, "AD": 1.2},
+        "SIDEWAYS": {"MA": 0.6, "MR": 1.8, "AD": 1.2},
+        "UNKNOWN": {"MA": 0.8, "MR": 0.8, "AD": 1.6}
     }
+
+    strategy_weights = regime_weights["UNKNOWN"].copy()
 
     state = load_state()
 
@@ -263,6 +266,7 @@ def run_live_simulation(universe=None):
 
         signal_list = []
         pending_signals = []
+
         confirmed_signals = []
 
         signal_debug = []
@@ -302,6 +306,10 @@ def run_live_simulation(universe=None):
         print(f"\nMARKET REGIME: {market_regime}")
         print(f"RISK MODE: {risk_mode}\n")
 
+        # Update strategy weights based on regime
+        if market_regime in regime_weights:
+            strategy_weights = regime_weights[market_regime].copy()
+
         regime_row = ""
 
         for ticker in prices:
@@ -333,6 +341,10 @@ def run_live_simulation(universe=None):
             try:
                 returns = data["Close"].pct_change().dropna()
                 vol = returns.std() * 100
+
+                if vol < MIN_VOLATILITY:
+                    continue
+
                 volatility_data.append((ticker, vol))
 
                 try:
@@ -664,6 +676,12 @@ def run_live_simulation(universe=None):
         print(f"Trend Strength: {pulse_trend}")
         print(f"Momentum: {momentum_state}")
 
+        print("\nSTRATEGY WEIGHTS")
+        print("----------------")
+
+        for strat, w in strategy_weights.items():
+            print(f"{strat}: {w:.2f}")
+
         print("\nVOLATILITY")
         print("----------")
 
@@ -726,6 +744,10 @@ def run_live_simulation(universe=None):
             key = (ticker,signal)
 
             signal_history[key] = signal_history.get(key,0)+1
+
+            # Signal persistence boost
+            persistence = signal_history[key]
+            vote_strength = vote_strength + (persistence * 0.25)
 
             if signal_history[key] >= SIGNAL_CONFIRM_CYCLES:
                 confirmed_signals.append((strat,signal,ticker,vote_strength,vote_details,vote_strength))
@@ -797,7 +819,7 @@ def run_live_simulation(universe=None):
             print("None")
 
 
-        for strat,signal,ticker,vote_strength,_ in confirmed_signals:
+        for strat,signal,ticker,vote_strength,*_ in confirmed_signals:
 
             now = time.time()
 
