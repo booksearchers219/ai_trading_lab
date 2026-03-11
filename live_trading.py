@@ -90,6 +90,12 @@ def run_live_simulation(universe=None):
         "AD": 30000
     }
 
+    strategy_weights = {
+        "MA": 1.0,
+        "MR": 1.0,
+        "AD": 1.0
+    }
+
     state = load_state()
 
     if state:
@@ -108,6 +114,7 @@ def run_live_simulation(universe=None):
 
     high_prices = {}
     signal_history = {}
+    position_scores = {}
 
     data_refresh_time = 0
     DATA_REFRESH_SECONDS = 300
@@ -437,8 +444,17 @@ def run_live_simulation(universe=None):
                 debug_line += f"{strat_name}:{vote} "
             signal_debug.append(debug_line)
 
-            buy_votes = votes.count("BUY")
-            sell_votes = votes.count("SELL")
+            buy_votes = 0
+            sell_votes = 0
+
+            for strat_name, vote in signals.items():
+
+                weight = strategy_weights.get(strat_name, 1)
+
+                if vote == "BUY":
+                    buy_votes += weight
+                elif vote == "SELL":
+                    sell_votes += weight
 
             combined_signal = "HOLD"
             vote_strength = 0
@@ -460,11 +476,13 @@ def run_live_simulation(universe=None):
                 breadth_hold += 1
 
             if combined_signal in ("BUY", "SELL"):
-                signal_list.append(("COUNCIL", combined_signal, ticker, vote_strength, vote_details))
+                score = vote_strength
+
+                signal_list.append(("COUNCIL", combined_signal, ticker, vote_strength, vote_details, score))
 
 
 
-        active_keys = {(ticker,signal) for _,signal,ticker,_,_ in signal_list}
+        active_keys = {(ticker,signal) for _,signal,ticker,_,_,_ in signal_list}
 
         for key in list(signal_history.keys()):
             if key not in active_keys:
@@ -703,14 +721,14 @@ def run_live_simulation(universe=None):
 
 
 
-        for strat,signal,ticker,vote_strength,vote_details in signal_list:
+        for strat,signal,ticker,vote_strength,vote_details,_ in signal_list:
 
             key = (ticker,signal)
 
             signal_history[key] = signal_history.get(key,0)+1
 
             if signal_history[key] >= SIGNAL_CONFIRM_CYCLES:
-                confirmed_signals.append((strat,signal,ticker,vote_strength,vote_details))
+                confirmed_signals.append((strat,signal,ticker,vote_strength,vote_details,vote_strength))
             else:
                 pending_signals.append((strat,signal,ticker,vote_strength,vote_details))
 
@@ -732,7 +750,33 @@ def run_live_simulation(universe=None):
         if not confirmed_signals:
             print("None")
 
-        for strat,signal,ticker,vote_strength,vote_details in confirmed_signals:
+            print("\nTOP OPPORTUNITIES")
+            print("-----------------")
+
+            opportunities = []
+            best_opportunity = None
+            best_score = 0
+
+            for strat, signal, ticker, vote_strength, vote_details, score in confirmed_signals:
+                if signal == "BUY":
+                    opportunities.append((ticker, score))
+
+            opportunities.sort(key=lambda x: x[1], reverse=True)
+
+            if not opportunities:
+                print("None")
+            else:
+                for ticker, score in opportunities[:5]:
+                    print(f"{ticker:<6} score:{score}")
+
+                    if score > best_score:
+                        best_score = score
+                        best_opportunity = ticker
+
+        # Rank signals by strength
+        confirmed_signals.sort(key=lambda x: x[3], reverse=True)
+
+        for strat,signal,ticker,vote_strength,vote_details,_ in confirmed_signals:
             print(f"{ticker:<6} {signal:<4} votes:{vote_strength}")
 
 
@@ -830,14 +874,40 @@ def run_live_simulation(universe=None):
 
             open_positions = len(portfolio.positions)
 
-
             if (
-                signal == "BUY"
-                and shares > 0
-                and held == 0
-                and open_positions < MAX_POSITIONS
-                and current_value < max_allowed
+                    signal == "BUY"
+                    and shares > 0
+                    and held == 0
+                    and current_value < max_allowed
+                    and (
+                    open_positions < MAX_POSITIONS
+                    or (
+                            open_positions >= MAX_POSITIONS
+                            and position_scores
+                            and vote_strength > min(position_scores.values())
+                    )
+            )
             ):
+
+                # Rotate weakest position if portfolio full
+                if open_positions >= MAX_POSITIONS:
+
+                    weakest = min(position_scores, key=position_scores.get)
+                    weakest_score = position_scores[weakest]
+
+                    if vote_strength > weakest_score:
+
+                        qty = portfolio.positions.get(weakest, 0)
+                        w_price = prices.get(weakest)
+
+                        if qty > 0 and w_price:
+                            print(f"ROTATING OUT {weakest}")
+
+                            portfolio.sell(weakest, w_price, qty)
+
+                            log_trade("ROTATE", weakest, "SELL", w_price, qty)
+
+                            position_scores.pop(weakest, None)
 
                 print(f"{strat} BUY {shares} {ticker} @ {round(price,2)}")
 
@@ -845,6 +915,8 @@ def run_live_simulation(universe=None):
                 print(f"Reason: {reason} ({vote_strength} votes)")
 
                 portfolio.buy(ticker,price,shares)
+
+                position_scores[ticker] = vote_strength
 
                 high_prices[ticker] = price
 
@@ -863,6 +935,8 @@ def run_live_simulation(universe=None):
                 print(f"Reason: {reason} ({vote_strength} votes)")
 
                 portfolio.sell(ticker,price,held)
+
+                position_scores.pop(ticker, None)
 
                 log_trade("COUNCIL",ticker,"SELL",price,held)
 
@@ -889,6 +963,18 @@ def run_live_simulation(universe=None):
 
         print("\nPORTFOLIO")
         print("---------")
+
+        # Portfolio intelligence tracking
+        weakest_position = None
+        weakest_score = None
+
+        if position_scores:
+            weakest_position = min(position_scores, key=position_scores.get)
+            weakest_score = position_scores[weakest_position]
+
+
+
+
         print(f"Value: ${portfolio_value:,.2f}")
         print(f"TODAY P/L: {pl_str} ({pct_str})")
 
@@ -954,6 +1040,24 @@ def run_live_simulation(universe=None):
         else:
             print("No open positions")
 
+        print("\nPORTFOLIO INTELLIGENCE")
+        print("----------------------")
+
+        if weakest_position:
+            print(f"Weakest Position : {weakest_position} (score {weakest_score})")
+        else:
+            print("Weakest Position : None")
+
+        if best_opportunity:
+            print(f"Top Opportunity  : {best_opportunity} (score {best_score})")
+        else:
+            print("Top Opportunity  : None")
+
+        if weakest_position and best_opportunity and best_score > weakest_score:
+            print("Rotation Signal  : YES")
+        else:
+            print("Rotation Signal  : NO")
+
 
 
         log_equity({"MA": portfolio_value, "MR": portfolio_value, "AD": portfolio_value})
@@ -961,6 +1065,14 @@ def run_live_simulation(universe=None):
         strategy_equity["MA"] = portfolio_value
         strategy_equity["MR"] = portfolio_value
         strategy_equity["AD"] = portfolio_value
+
+        # Simple adaptive weighting
+        total = sum(strategy_equity.values())
+
+        for strat in strategy_equity:
+            performance = strategy_equity[strat] / total
+
+            strategy_weights[strat] = max(0.5, min(2.0, performance * 3))
 
         print("\nSTRATEGY LEADERBOARD")
         print("--------------------")
