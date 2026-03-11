@@ -1,3 +1,4 @@
+
 import os
 import time
 import yfinance as yf
@@ -16,12 +17,13 @@ from datetime import datetime, timedelta
 import pytz
 import shutil
 
-MAX_POSITIONS = 6
+MAX_POSITIONS = 5
 MAX_RISK_PER_TRADE = 0.05
 MAX_TICKER_ALLOCATION = 0.20
 STOP_LOSS_PCT = 0.05
 TRAILING_STOP_PCT = 0.05
 SIGNAL_CONFIRM_CYCLES = 3
+
 
 
 SCAN_UNIVERSE = [
@@ -76,7 +78,11 @@ def compute_sector_flow(prices, data_cache):
 
     return sector_scores
 
-def run_live_simulation():
+def run_live_simulation(universe=None):
+
+    if universe is None:
+        universe = SCAN_UNIVERSE
+
 
     strategy_equity = {
         "MA": 30000,
@@ -142,7 +148,7 @@ def run_live_simulation():
 
         prices = {}
 
-        tickers = " ".join(SCAN_UNIVERSE)
+        tickers = " ".join(universe)
 
         try:
             live_data = yf.download(
@@ -156,32 +162,33 @@ def run_live_simulation():
         except Exception:
             live_data = None
 
-
         if live_data is not None:
 
-            for ticker in SCAN_UNIVERSE:
+            for ticker in universe:
                 try:
 
-                    # Try structure: live_data[ticker]["Close"]
-                    if ticker in live_data:
+                    # Single ticker dataframe
+                    if "Close" in live_data and not isinstance(live_data["Close"], yf.pandas.Series):
+                        price = live_data["Close"].iloc[-1]
+
+                    # Multi-ticker grouped dataframe
+                    elif ticker in live_data:
                         price = live_data[ticker]["Close"].iloc[-1]
 
-                    # Try structure: live_data["Close"][ticker]
                     else:
                         price = live_data["Close"][ticker].iloc[-1]
 
-                    if not math.isnan(price):
+                    if price is not None and not math.isnan(price):
                         prices[ticker] = float(price)
 
                 except Exception:
                     continue
 
-
         current_time = time.time()
 
         if current_time - data_refresh_time > DATA_REFRESH_SECONDS:
 
-            for ticker in SCAN_UNIVERSE:
+            for ticker in universe:
                 try:
                     data_cache[ticker] = get_recent_data(ticker, 1)
                 except Exception:
@@ -194,7 +201,7 @@ def run_live_simulation():
 
         row = ""
 
-        for t in SCAN_UNIVERSE:
+        for t in universe:
 
             p = prices.get(t)
 
@@ -268,7 +275,9 @@ def run_live_simulation():
 
         market_regime = "UNKNOWN"
 
-        spy_data = data_cache.get("SPY")
+        market_symbol = universe[0]
+
+        spy_data = data_cache.get(market_symbol)
 
         if spy_data is not None:
             try:

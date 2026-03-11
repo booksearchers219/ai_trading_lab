@@ -181,3 +181,23 @@ def council_strategy(data, state):
         print(f"{regime} council votes:", signals, "→", decision)
 
     return decision
+
+def volatility_breakout_strategy(data):
+
+    closes = data["Close"]
+    highs = data["High"]
+    lows = data["Low"]
+
+    if len(closes) < 20:
+        return "HOLD"
+
+    # Today's range
+    today_range = highs.iloc[-1] - lows.iloc[-1]
+
+    # Average range over last 10 days
+    avg_range = (highs - lows).rolling(window=10).mean().iloc[-2]
+
+    if today_range > avg_range * 1.5:
+        return "BUY"
+
+    return "HOLD"

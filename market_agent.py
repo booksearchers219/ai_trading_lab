@@ -22,6 +22,38 @@ from dashboard import print_market, print_signals
 from trend_panel import print_trend_panel, print_market_breadth
 
 
+
+def load_watchlist(filename="watchlist.txt"):
+
+    tickers = []
+
+    try:
+        with open(filename, "r") as f:
+            for line in f:
+                t = line.strip().upper()
+                if t:
+                    tickers.append(t)
+    except FileNotFoundError:
+        print("watchlist.txt not found")
+        return []
+
+    return tickers
+
+
+TOP10 = [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "GOOGL",
+    "AMZN",
+    "META",
+    "TSLA",
+    "AVGO",
+    "AMD",
+    "NFLX"
+]
+
+
 def get_live_price(ticker):
     data = yf.Ticker(ticker)
 
@@ -101,7 +133,7 @@ def print_strategy_agreement(symbol_data):
         votes = [
             analyze_market(df),
             mean_reversion_strategy(df),
-            adaptive_strategy(df)
+            adaptive_strategy(df, {})
         ]
 
         for v in votes:
@@ -183,7 +215,7 @@ def print_strategy_confidence(symbol_data):
 
         vote_ma = analyze_market(df)
         vote_mr = mean_reversion_strategy(df)
-        vote_ad = adaptive_strategy(df)
+        vote_ad = adaptive_strategy(df, {})
 
         votes = [vote_ma, vote_mr, vote_ad]
 
@@ -287,10 +319,28 @@ if __name__ == "__main__":
     parser.add_argument("--debug-votes", action="store_true",
                         help="Print strategy votes during backtest")
 
+    parser.add_argument(
+        "--top10",
+        action="store_true",
+        help="Use top 10 stock universe instead of watchlist"
+    )
+
     args = parser.parse_args()
 
     if args.live:
-        run_live_simulation()
+
+        if args.top10:
+            universe = TOP10
+        else:
+            universe = load_watchlist()
+
+        print("\nTrading Universe")
+        print("----------------")
+
+        for t in universe:
+            print(t)
+
+        run_live_simulation(universe)
         exit()
 
     ticker = args.ticker.upper()
@@ -353,6 +403,10 @@ if __name__ == "__main__":
     mr_equity, mr_final, mr_buys, mr_sells, mr_profits = run_backtest(data, mean_reversion_strategy)
     adaptive_equity, adaptive_final, ad_buys, ad_sells, ad_profits = run_backtest(data, adaptive_strategy)
 
+    vol_equity, vol_final, vol_buys, vol_sells, vol_profits = run_backtest(
+        data, volatility_breakout_strategy
+    )
+
     vote_state = {"debug": args.debug_votes}
 
     vote_equity, vote_final, vote_buys, vote_sells, vote_profits = run_backtest(
@@ -376,12 +430,16 @@ if __name__ == "__main__":
         lambda d: council_strategy(d, council_state)
     )
 
-    council_sharpe = calculate_sharpe(council_equity)
+
 
     ma_sharpe = calculate_sharpe(ma_equity)
     mr_sharpe = calculate_sharpe(mr_equity)
     adaptive_sharpe = calculate_sharpe(adaptive_equity)
     vote_sharpe = calculate_sharpe(vote_equity)
+    council_sharpe = calculate_sharpe(council_equity)
+    vol_sharpe = calculate_sharpe(vol_equity)
+
+
 
     # Buy & Hold
     first_price = data["Close"].iloc[0]
@@ -396,6 +454,20 @@ if __name__ == "__main__":
         bh_equity.append(bh_shares * price)
 
     bh_sharpe = calculate_sharpe(bh_equity)
+
+    strategy_results = {
+        "MA": {"final": ma_final, "sharpe": ma_sharpe},
+        "MR": {"final": mr_final, "sharpe": mr_sharpe},
+        "Adaptive": {"final": adaptive_final, "sharpe": adaptive_sharpe},
+        "Vote": {"final": vote_final, "sharpe": vote_sharpe},
+        "Council": {"final": council_final, "sharpe": council_sharpe},
+        "BuyHold": {"final": bh_final, "sharpe": bh_sharpe},
+        "Volatility": {"final": vol_final, "sharpe": vol_sharpe},
+    }
+
+    from leaderboard import print_leaderboard
+
+    print_leaderboard(strategy_results)
 
     if args.sweep:
 
@@ -469,6 +541,25 @@ if __name__ == "__main__":
     ma_pf = profit_factor(ma_profits)
     mr_pf = profit_factor(mr_profits)
     ad_pf = profit_factor(ad_profits)
+
+    print("\nSTRATEGY PERFORMANCE")
+    print("--------------------------------------------")
+
+    strategy_table = [
+        ("MA", ma_final, ma_sharpe, ma_max_dd),
+        ("MR", mr_final, mr_sharpe, mr_max_dd),
+        ("Adaptive", adaptive_final, adaptive_sharpe, adaptive_max_dd),
+        ("Vote", vote_final, vote_sharpe, 0),
+        ("Council", council_final, council_sharpe, 0),
+        ("BuyHold", bh_final, bh_sharpe, bh_max_dd),
+    ]
+
+    strategy_table.sort(key=lambda x: x[2], reverse=True)
+
+    print(f"{'Strategy':<12}{'Final':>12}{'Sharpe':>10}{'MaxDD':>10}")
+
+    for name, final, sharpe, dd in strategy_table:
+        print(f"{name:<12}{final:>12.2f}{sharpe:>10.2f}{dd * 100:>9.2f}%")
 
     print("\nMoving Average")
     print("Trades:", len(ma_profits))
@@ -688,4 +779,4 @@ if __name__ == "__main__":
             print(" ".join(f"{v:5.2f}" for v in row))
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig("chart.png")
