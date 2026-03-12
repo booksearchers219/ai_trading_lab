@@ -1,19 +1,26 @@
 import os
 import glob
+import shutil
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 def cleanup_reports(max_files=50):
 
-    files = sorted(glob.glob("reports/*"), key=os.path.getmtime)
+    items = sorted(glob.glob("reports/*"), key=os.path.getmtime)
 
-    if len(files) > max_files:
-        for f in files[:-max_files]:
-            os.remove(f)
+    if len(items) > max_files:
+        for item in items[:-max_files]:
+
+            if os.path.isfile(item):
+                os.remove(item)
+
+            elif os.path.isdir(item):
+                shutil.rmtree(item)
 
 
 def max_drawdown(drawdowns):
+
     return min(drawdowns)
 
 
@@ -27,7 +34,7 @@ def rolling_sharpe(equity_curve, window=20):
             sharpes.append(0)
             continue
 
-        segment = equity_curve[i-window:i]
+        segment = equity_curve[i - window:i]
 
         returns = np.diff(segment) / segment[:-1]
 
@@ -56,7 +63,7 @@ def plot_strategy_landscape(results):
 
         heatmap[i][j] = sharpe
 
-    plt.figure(figsize=(10,6))
+    plt.figure(figsize=(10, 6))
 
     plt.imshow(
         heatmap,

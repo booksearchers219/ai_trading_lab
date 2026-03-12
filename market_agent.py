@@ -1,10 +1,10 @@
 import argparse
-
 import numpy as np
+import matplotlib
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import yfinance as yf
-
 from backtest_utils import *
 from data_utils import *
 from engine.evolve_engine import run_evolution_search
@@ -24,7 +24,6 @@ from strategy_stats import record_trade, print_strategy_stats
 from momentum_scanner import find_momentum_leaders, print_momentum_leaders
 
 
-
 def print_opportunity_heatmap(signals):
     print("\nOPPORTUNITY HEATMAP")
     print("-------------------")
@@ -36,7 +35,8 @@ def print_opportunity_heatmap(signals):
     # count signals per ticker
     counts = {}
     for s in signals:
-        ticker = s["ticker"]
+        ticker = s[0]
+
         counts[ticker] = counts.get(ticker, 0) + 1
 
     # sort strongest first
@@ -46,8 +46,8 @@ def print_opportunity_heatmap(signals):
         bar = "█" * score
         print(f"{ticker:<5} {bar:<5} {score}")
 
-def print_signal_radar(signals):
 
+def print_signal_radar(signals):
     print("\nSIGNAL RADAR")
     print("------------")
 
@@ -58,9 +58,8 @@ def print_signal_radar(signals):
     counts = {}
 
     for s in signals:
-
-        ticker = s["ticker"]
-        action = s["signal"]
+        ticker = s[0]
+        action = s[1]
 
         key = (ticker, action)
 
@@ -69,11 +68,10 @@ def print_signal_radar(signals):
     ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
 
     for (ticker, action), score in ranked[:10]:
-
         print(f"{ticker:<6} {action:<4} strength {score}")
 
-def load_watchlist(filename="watchlist.txt"):
 
+def load_watchlist(filename="watchlist.txt"):
     tickers = []
 
     try:
@@ -103,13 +101,13 @@ TOP10 = [
 ]
 
 DISCOVERY_UNIVERSE = [
-    "NVDA","AMD","AVGO","TSLA","META","AAPL","MSFT",
-    "GOOGL","AMZN","NFLX","SMCI","ARM","INTC",
-    "MU","QCOM","ADBE","CRM","ORCL","NOW","SHOP"
+    "NVDA", "AMD", "AVGO", "TSLA", "META", "AAPL", "MSFT",
+    "GOOGL", "AMZN", "NFLX", "SMCI", "ARM", "INTC",
+    "MU", "QCOM", "ADBE", "CRM", "ORCL", "NOW", "SHOP"
 ]
 
-def load_crypto_watchlist(filename="crypto_watchlist.txt"):
 
+def load_crypto_watchlist(filename="crypto_watchlist.txt"):
     tickers = []
 
     try:
@@ -133,8 +131,8 @@ def get_live_price(ticker):
 
     return float(price)
 
-def compute_sector_strength(data):
 
+def compute_sector_strength(data):
     sectors = {
         "AI": ["NVDA", "AMD"],
         "TECH": ["AAPL", "MSFT"],
@@ -149,7 +147,6 @@ def compute_sector_strength(data):
 
         for s in symbols:
             if s in data and len(data[s]) >= 2:
-
                 close = data[s]["Close"]
                 pct = (close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]
 
@@ -172,8 +169,8 @@ def compute_sector_strength(data):
 
     return sector_scores
 
-def print_market_regime(data):
 
+def print_market_regime(data):
     regimes = regime_history(data)
 
     if not regimes:
@@ -192,7 +189,6 @@ def print_market_regime(data):
 
 
 def print_strategy_agreement(symbol_data):
-
     buy_votes = 0
     sell_votes = 0
     hold_votes = 0
@@ -235,7 +231,6 @@ def print_strategy_agreement(symbol_data):
 
 
 def compute_strategy_allocation(ma_sharpe, mr_sharpe, ad_sharpe):
-
     scores = {
         "MA": max(ma_sharpe, 0),
         "MR": max(mr_sharpe, 0),
@@ -253,43 +248,42 @@ def compute_strategy_allocation(ma_sharpe, mr_sharpe, ad_sharpe):
 
 
 def print_market_sentiment(symbol_data):
+    score = 0
 
-        score = 0
+    for symbol, df in symbol_data.items():
 
-        for symbol, df in symbol_data.items():
+        if len(df) < 2:
+            continue
 
-            if len(df) < 2:
-                continue
+        close = df["Close"]
 
-            close = df["Close"]
+        pct = (close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]
 
-            pct = (close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]
+        if pct > 0.01:
+            score += 1
+        elif pct < -0.01:
+            score -= 1
 
-            if pct > 0.01:
-                score += 1
-            elif pct < -0.01:
-                score -= 1
+    print("\nMARKET SENTIMENT")
+    print("----------------")
 
-        print("\nMARKET SENTIMENT")
-        print("----------------")
+    if score >= 3:
+        print("BULLISH 🔥🔥🔥")
 
-        if score >= 3:
-            print("BULLISH 🔥🔥🔥")
+    elif score >= 1:
+        print("BULLISH 🔥")
 
-        elif score >= 1:
-            print("BULLISH 🔥")
+    elif score == 0:
+        print("NEUTRAL ⚖️")
 
-        elif score == 0:
-            print("NEUTRAL ⚖️")
+    elif score <= -3:
+        print("BEARISH ❄️❄️❄️")
 
-        elif score <= -3:
-            print("BEARISH ❄️❄️❄️")
+    else:
+        print("BEARISH ❄️")
 
-        else:
-            print("BEARISH ❄️")
 
 def print_market_pulse(data, symbol_data, leaders):
-
     print("\nAI TRADING LAB")
     print("--------------")
 
@@ -330,7 +324,7 @@ def print_market_pulse(data, symbol_data, leaders):
     # Top stock
     if leaders:
         top_stock, pct = leaders[0]
-        top_stock_label = f"{top_stock} {pct*100:+.2f}%"
+        top_stock_label = f"{top_stock} {pct * 100:+.2f}%"
     else:
         top_stock_label = "None"
 
@@ -340,7 +334,6 @@ def print_market_pulse(data, symbol_data, leaders):
 
 
 def print_strategy_confidence(symbol_data):
-
     buy_votes = 0
     sell_votes = 0
     hold_votes = 0
@@ -377,14 +370,11 @@ def print_strategy_confidence(symbol_data):
 
     bar = int(buy_pct * 10)
 
-    print(f"BUY confidence  {'█'*bar}{'░'*(10-bar)} {buy_pct*100:.0f}%")
-    print(f"SELL pressure   {sell_pct*100:.0f}%")
-
-
+    print(f"BUY confidence  {'█' * bar}{'░' * (10 - bar)} {buy_pct * 100:.0f}%")
+    print(f"SELL pressure   {sell_pct * 100:.0f}%")
 
 
 def print_watchlist_momentum(data):
-
     changes = []
 
     for symbol, df in data.items():
@@ -404,8 +394,8 @@ def print_watchlist_momentum(data):
     print("----------------")
 
     for sym, pct in changes:
+        print(f"{sym:<6} {pct * 100:+.2f}%")
 
-        print(f"{sym:<6} {pct*100:+.2f}%")
 
 if __name__ == "__main__":
 
@@ -533,7 +523,10 @@ if __name__ == "__main__":
     leaders = find_momentum_leaders(DISCOVERY_UNIVERSE, top_n=5)
     print_momentum_leaders(leaders)
 
-    signals = generate_signals(symbol_data)
+    data_cache = symbol_data
+    adaptive_state = {}
+
+    signals = generate_signals(symbol_data, data_cache, adaptive_state)
 
     print_opportunity_heatmap(signals)
     print_signal_radar(signals)
@@ -548,7 +541,6 @@ if __name__ == "__main__":
         pct_str = f"{pct * 100:+.2f}%"
 
         print(f"{sector:<7} {label:<10} {pct_str}")
-
 
     # Run strategies
     ma_equity, ma_final, ma_buys, ma_sells, ma_profits = run_backtest(data, analyze_market)
@@ -582,8 +574,6 @@ if __name__ == "__main__":
         lambda d: council_strategy(d, council_state)
     )
 
-
-
     ma_sharpe = calculate_sharpe(ma_equity)
     mr_sharpe = calculate_sharpe(mr_equity)
     adaptive_sharpe = calculate_sharpe(adaptive_equity)
@@ -602,9 +592,6 @@ if __name__ == "__main__":
     vote_sharpe = calculate_sharpe(vote_equity)
     council_sharpe = calculate_sharpe(council_equity)
     vol_sharpe = calculate_sharpe(vol_equity)
-
-
-
 
     # Buy & Hold
     first_price = data["Close"].iloc[0]
@@ -795,8 +782,6 @@ if __name__ == "__main__":
 
     ax0.plot(price_series, color="black", linewidth=2, label="Price")
 
-
-
     # Regime shading
     for i in range(len(regimes) - 1):
 
@@ -959,4 +944,6 @@ if __name__ == "__main__":
             print(" ".join(f"{v:5.2f}" for v in row))
 
     plt.tight_layout()
-    plt.savefig("chart.png")
+
+    # save chart
+    plt.savefig("chart.png", dpi=300)
