@@ -3,6 +3,15 @@ MAX_TICKER_ALLOCATION = 0.20
 
 
 def calculate_position_size(portfolio, price, vote_strength, market_regime):
+    MAX_EXPOSURE = 0.80
+
+    portfolio_value = portfolio.total_value(prices)
+    positions_value = portfolio_value - portfolio.cash
+
+    exposure = positions_value / portfolio_value if portfolio_value > 0 else 0
+
+    if exposure >= MAX_EXPOSURE:
+        return 0
 
     portfolio_value = portfolio.total_value({})
 

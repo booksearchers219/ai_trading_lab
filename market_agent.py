@@ -605,6 +605,7 @@ if __name__ == "__main__":
     print_opportunity_heatmap(signals)
     print_signal_radar(signals)
     print_top_opportunities(signals)
+    print_top_opportunities(signals)
 
     sectors = compute_sector_strength(symbol_data)
 
