@@ -536,7 +536,6 @@ if __name__ == "__main__":
             universe = load_watchlist()
 
         crypto_universe = load_crypto_watchlist()
-        run_live_simulation(universe, crypto_universe)
 
         print("\nTrading Universe")
         print("----------------")
