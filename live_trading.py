@@ -1184,7 +1184,7 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
         print(perf_row)
 
-        generate_equity_chart()
+        # generate_equity_chart()
 
         save_state({
             "cash": portfolio.cash,

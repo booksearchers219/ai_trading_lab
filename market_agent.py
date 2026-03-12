@@ -888,7 +888,7 @@ if __name__ == "__main__":
     ax0.scatter(x, y, marker="v", color="magenta", s=80)
 
     ax0.set_title(f"{ticker} Price", fontsize=15, fontweight="bold", loc="left")
-    ax0.legend(loc="upper left", bbox_to_anchor=(1, 1))
+    ax0.legend(loc="upper left")
     ax0.grid(True)
 
     ax1.plot(ma_equity, label="Moving Average", linewidth=3)
@@ -922,7 +922,7 @@ if __name__ == "__main__":
     ax1.scatter(x, y, marker="v", color="magenta", s=80)
 
     ax1.set_title(f"{ticker} Strategy Comparison", fontsize=16, fontweight="bold", loc="left")
-    ax1.legend(loc="upper left", bbox_to_anchor=(1, 1))
+    ax1.legend(loc="upper left")
     ax1.grid(True)
     ax1.yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
 
@@ -934,7 +934,7 @@ if __name__ == "__main__":
     ax2.axhline(y=0, color="black", linewidth=2, linestyle="--", alpha=0.5)
 
     ax2.set_title("Drawdown", fontsize=15, fontweight="bold", loc="left")
-    ax2.legend(loc="upper left", bbox_to_anchor=(1, 1))
+    ax2.legend(loc="upper left")
     ax2.grid(True)
 
     # Trade Profit Distribution
@@ -946,7 +946,7 @@ if __name__ == "__main__":
     ax3.set_xlabel("Profit per Trade")
     ax3.set_ylabel("Number of Trades")
 
-    ax3.legend(loc="upper left", bbox_to_anchor=(1, 1))
+    ax3.legend(loc="upper left")
     ax3.grid(True)
 
     # Win/Loss Distribution
@@ -981,7 +981,7 @@ if __name__ == "__main__":
     ax5.set_ylabel("Sharpe")
     ax5.set_xlabel("Backtest Days")
 
-    ax5.legend(loc="upper left", bbox_to_anchor=(1, 1))
+    ax5.legend(loc="upper left")
     ax5.grid(True)
 
     # Calculate strategy returns
@@ -1022,3 +1022,6 @@ if __name__ == "__main__":
 
     # save chart
     plt.savefig("chart.png", dpi=300)
+    # print("Displaying chart window...")
+
+    # plt.show()
