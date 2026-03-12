@@ -520,6 +520,9 @@ if __name__ == "__main__":
     parser.add_argument("--debug-votes", action="store_true",
                         help="Print strategy votes during backtest")
 
+    parser.add_argument("--reset", action="store_true",
+                        help="Reset live trading state and start fresh")
+
     parser.add_argument(
         "--top10",
         action="store_true",
@@ -529,6 +532,22 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.live:
+
+        if args.reset:
+            import os
+
+            files_to_remove = [
+                "live_state.json",
+                "equity_log.csv",
+                "chart.png"
+            ]
+
+            for f in files_to_remove:
+                if os.path.exists(f):
+                    os.remove(f)
+                    print(f"Removed {f}")
+
+            print("Live trading state reset.\n")
 
         if args.top10:
             universe = TOP10
