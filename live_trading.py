@@ -26,6 +26,8 @@ STOP_LOSS_PCT = 0.05
 TRAILING_STOP_PCT = 0.05
 SIGNAL_CONFIRM_CYCLES = 3
 MIN_VOLATILITY = 0.5
+MAX_NEW_TRADES_PER_CYCLE = 5
+
 
 
 SCAN_UNIVERSE = [
@@ -828,6 +830,7 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
         # Rank signals by strength
         confirmed_signals.sort(key=lambda x: x[3], reverse=True)
+        confirmed_signals = confirmed_signals[:MAX_NEW_TRADES_PER_CYCLE]
 
         for strat, signal, ticker, vote_strength, vote_details, _ in confirmed_signals:
             print(f"{ticker:<6} {signal:<4} votes:{vote_strength}")
