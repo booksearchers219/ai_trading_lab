@@ -16,7 +16,12 @@ def generate_signals(prices, data_cache, adaptive_state):
         if data is None:
             continue
 
-        regime = regime_history(data)[-1]
+        regimes = regime_history(data)
+
+        if not regimes:
+            continue
+
+        regime = regimes[-1]
 
         signals = {}
 
@@ -36,10 +41,19 @@ def generate_signals(prices, data_cache, adaptive_state):
         buy_votes = votes.count("BUY")
         sell_votes = votes.count("SELL")
 
+        vote_strength = buy_votes + sell_votes
+
         if buy_votes >= 2:
-            signal_list.append(("COUNCIL", "BUY", ticker, buy_votes))
+            signal_list.append(("COUNCIL", "BUY", ticker, vote_strength))
 
         elif sell_votes >= 2:
-            signal_list.append(("COUNCIL", "SELL", ticker, sell_votes))
+            signal_list.append(("COUNCIL", "SELL", ticker, vote_strength))
+
+    # Rank strongest signals first
+    signal_list = sorted(signal_list, key=lambda x: x[3], reverse=True)
+
+    # Limit number of trades
+    MAX_TRADES = 5
+    signal_list = signal_list[:MAX_TRADES]
 
     return signal_list
