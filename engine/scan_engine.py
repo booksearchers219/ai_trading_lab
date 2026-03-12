@@ -1,7 +1,6 @@
 import os
 import multiprocessing as mp
 import numpy as np
-import csv
 from datetime import datetime
 import random
 
@@ -10,7 +9,6 @@ from workers.ticker_worker import process_ticker
 from utils.reporting import cleanup_reports
 from charts import (
     save_heatmap,
-    save_portfolio_chart,
     save_strategy_dominance,
     save_sharpe_leaderboard,
     save_regime_distribution,
@@ -31,19 +29,11 @@ def run_scan(args):
         else:
             ticker_list = all_tickers
 
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-    report_dir = "reports"
-    os.makedirs(report_dir, exist_ok=True)
-
-    if args.report:
-        os.makedirs("reports", exist_ok=True)
-        report_dir = f"reports/{timestamp}"
-        os.makedirs(report_dir, exist_ok=True)
-
     cleanup_reports()
 
     results = []
+
+    months = args.window
 
     if args.parallel:
 
@@ -52,8 +42,6 @@ def run_scan(args):
         pool = mp.Pool(mp.cpu_count())
 
         data_cache = {}
-
-        months = args.window
 
         for ticker in ticker_list:
             try:
@@ -73,8 +61,6 @@ def run_scan(args):
 
     else:
 
-        months = args.window
-
         for i, ticker in enumerate(ticker_list, 1):
 
             print(f"\nTesting {ticker} ({i}/{len(ticker_list)})")
@@ -90,10 +76,6 @@ def run_scan(args):
     print("Tickers tested:", len(results))
 
     return results
-
-
-
-import csv
 
 
 def analyze_scan_results(results, args):
@@ -124,7 +106,7 @@ def analyze_scan_results(results, args):
             ad_wins += 1
 
         print(
-            f"{r[0]:<5} | "
+            f"{r[0]:<6} | "
             f"{r[1]:<8} | "
             f"MA: {'$' + format(r[2], ',.2f'):>12} "
             f"MR: {'$' + format(r[3], ',.2f'):>12} "
@@ -139,11 +121,115 @@ def analyze_scan_results(results, args):
     print(f"{'Adaptive':<18}: {ad_wins}")
 
 
-
 def run_scan_and_report(args):
 
     results = run_scan(args)
 
     analyze_scan_results(results, args)
 
+    if not args.report:
+        return
 
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    report_dir = f"reports/{timestamp}"
+
+    os.makedirs(report_dir, exist_ok=True)
+
+    print("\nGenerating reports...\n")
+
+    # -------------------------
+    # Build Heatmap
+    # -------------------------
+
+    heatmap_array = []
+    heatmap_labels = []
+
+    ma_wins = 0
+    mr_wins = 0
+    ad_wins = 0
+
+    for r in results:
+
+        ticker = r[0]
+
+        ma_sharpe = r[5]
+        mr_sharpe = r[6]
+        ad_sharpe = r[7]
+
+        heatmap_array.append([ma_sharpe, mr_sharpe, ad_sharpe])
+        heatmap_labels.append(ticker)
+
+        best = max(ma_sharpe, mr_sharpe, ad_sharpe)
+
+        if best == ma_sharpe:
+            ma_wins += 1
+        elif best == mr_sharpe:
+            mr_wins += 1
+        else:
+            ad_wins += 1
+
+    heatmap_array = np.array(heatmap_array)
+    heatmap_array = np.nan_to_num(heatmap_array)
+
+    # -------------------------
+    # Placeholder regime data
+    # -------------------------
+
+    trend_count = 0
+    side_count = 0
+
+    trend_counts = {"MA": 0, "MR": 0, "AD": 0}
+    side_counts = {"MA": 0, "MR": 0, "AD": 0}
+
+    # -------------------------
+    # Generate Reports
+    # -------------------------
+
+    save_heatmap(
+        heatmap_array,
+        heatmap_labels,
+        args,
+        timestamp,
+        report_dir
+    )
+
+    save_strategy_dominance(
+        ma_wins,
+        mr_wins,
+        ad_wins,
+        args,
+        timestamp,
+        report_dir
+    )
+
+    save_sharpe_leaderboard(
+        results,
+        args,
+        timestamp,
+        report_dir
+    )
+
+    save_regime_distribution(
+        trend_count,
+        side_count,
+        args,
+        timestamp,
+        report_dir
+    )
+
+    save_trade_opportunities(
+        results,
+        args,
+        timestamp,
+        report_dir
+    )
+
+    save_regime_strategy_chart(
+        trend_counts,
+        side_counts,
+        args,
+        timestamp,
+        report_dir
+    )
+
+    print(f"\nReports saved to {report_dir}")
