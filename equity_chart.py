@@ -7,6 +7,8 @@ import os
 
 
 def generate_equity_chart():
+    print("DEBUG: generating equity chart...")
+
 
     if not os.path.exists("equity_log.csv"):
         return
@@ -15,21 +17,34 @@ def generate_equity_chart():
 
     df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-    plt.figure(figsize=(12,6))
+    plt.clf()
+    plt.figure(figsize=(12, 6))
 
     plt.plot(df["timestamp"], df["MA"], label="MA")
     plt.plot(df["timestamp"], df["MR"], label="MR")
     plt.plot(df["timestamp"], df["AD"], label="AD")
 
-    plt.axhline(10000, linestyle="--", color="black")
+    plt.axhline(30000, linestyle="--", color="black")
 
     plt.title("Live Strategy Equity Curves")
     plt.legend()
     plt.grid(True)
 
-    os.makedirs("reports/live_performance", exist_ok=True)
+    output_dir = "reports/live_performance"
+    os.makedirs(output_dir, exist_ok=True)
 
-    plt.savefig("reports/live_performance/equity_curves.png")
+    timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = os.path.join(output_dir, f"equity_{timestamp}.png")
+
+    plt.tight_layout()
+    plt.savefig(filename)
+
+    # latest snapshot
+    plt.savefig("chart.png")
 
     plt.close()
+
+
+
+
 

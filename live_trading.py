@@ -1192,7 +1192,7 @@ def run_live_simulation(universe=None, crypto_universe=None):
             "entry_prices": portfolio.entry_prices
         })
 
-        time.sleep(60)
+        time.sleep(300)
 
 
 if __name__ == "__main__":

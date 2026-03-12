@@ -25,6 +25,7 @@ from momentum_scanner import find_momentum_leaders, print_momentum_leaders
 
 
 def print_opportunity_heatmap(signals):
+
     print("\nOPPORTUNITY HEATMAP")
     print("-------------------")
 
@@ -32,22 +33,42 @@ def print_opportunity_heatmap(signals):
         print("None")
         return
 
-    # count signals per ticker
     counts = {}
+
     for s in signals:
-        ticker = s[0]
+        ticker = s[2]   # FIXED (ticker is index 2)
 
         counts[ticker] = counts.get(ticker, 0) + 1
 
-    # sort strongest first
     ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
 
     for ticker, score in ranked[:10]:
+
         bar = "█" * score
-        print(f"{ticker:<5} {bar:<5} {score}")
+
+        print(f"{ticker:<6} {bar:<10} {score}")
+
+
+def rank_opportunities(signals):
+
+    ranked = []
+
+    for strat, action, ticker, votes in signals:
+
+        if action != "BUY":
+            continue
+
+        score = votes * 2
+
+        ranked.append((ticker, score))
+
+    ranked.sort(key=lambda x: x[1], reverse=True)
+
+    return ranked[:10]
 
 
 def print_signal_radar(signals):
+
     print("\nSIGNAL RADAR")
     print("------------")
 
@@ -58,7 +79,8 @@ def print_signal_radar(signals):
     counts = {}
 
     for s in signals:
-        ticker = s[0]
+
+        ticker = s[2]   # FIXED
         action = s[1]
 
         key = (ticker, action)
@@ -68,7 +90,59 @@ def print_signal_radar(signals):
     ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
 
     for (ticker, action), score in ranked[:10]:
+
         print(f"{ticker:<6} {action:<4} strength {score}")
+
+def print_top_opportunities(signals):
+
+    ranked = rank_opportunities(signals)
+
+    print("\nTOP OPPORTUNITIES")
+    print("-----------------")
+
+    if not ranked:
+        print("None")
+        return
+
+    for ticker, score in ranked:
+        print(f"{ticker:<6} score:{score}")
+
+def print_risk_monitor(portfolio, prices):
+
+    value = portfolio.total_value(prices)
+
+    positions_value = value - portfolio.cash
+
+    exposure = (positions_value / value) * 100 if value > 0 else 0
+
+    largest = None
+    largest_pct = 0
+
+    for ticker, shares in portfolio.positions.items():
+
+        price = prices.get(ticker, 0)
+
+        pos_value = shares * price
+
+        pct = (pos_value / value) * 100 if value > 0 else 0
+
+        if pct > largest_pct:
+            largest_pct = pct
+            largest = ticker
+
+    print("\nRISK MONITOR")
+    print("------------")
+
+    print(f"Exposure: {exposure:.1f}%")
+
+    if largest:
+        print(f"Largest Position: {largest} {largest_pct:.1f}%")
+
+    if exposure > 80:
+        print("⚠ WARNING: Portfolio exposure high")
+
+    if largest_pct > 25:
+        print("⚠ WARNING: Position concentration risk")
 
 
 def load_watchlist(filename="watchlist.txt"):
@@ -530,6 +604,7 @@ if __name__ == "__main__":
 
     print_opportunity_heatmap(signals)
     print_signal_radar(signals)
+    print_top_opportunities(signals)
 
     sectors = compute_sector_strength(symbol_data)
 
