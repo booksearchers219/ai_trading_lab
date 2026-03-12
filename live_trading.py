@@ -1040,7 +1040,7 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
         if not prices:
             print("\nNo market data this cycle.")
-            time.sleep(60)
+            time.sleep(300)
             continue
 
         portfolio_value = portfolio.total_value(prices)
