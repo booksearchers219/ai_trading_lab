@@ -17,9 +17,10 @@ tmux split-window -h -t $SESSION
 tmux select-layout -t $SESSION even-horizontal
 
 # start bots
-tmux send-keys -t $SESSION:0.0 'BOT_NAME=momentum_bot python market_agent.py --live --strategy_name momentum' C-m
-tmux send-keys -t $SESSION:0.1 'BOT_NAME=meanrev_bot python market_agent.py --live --strategy_name meanrev' C-m
-tmux send-keys -t $SESSION:0.2 'BOT_NAME=adaptive_bot python market_agent.py --live --strategy_name adaptive' C-m
+tmux send-keys -t $SESSION:0.0 'export BOT_NAME=momentum_bot; python market_agent.py --live --strategy_name momentum' C-m
+tmux send-keys -t $SESSION:0.1 'export BOT_NAME=meanrev_bot; python market_agent.py --live --strategy_name meanrev' C-m
+tmux send-keys -t $SESSION:0.2 'export BOT_NAME=adaptive_bot; python market_agent.py --live --strategy_name adaptive' C-m
+
 
 # attach to session
 tmux attach -t $SESSION

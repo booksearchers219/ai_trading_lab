@@ -23,11 +23,12 @@ from trend_panel import print_trend_panel, print_market_breadth
 from strategy_stats import record_trade, print_strategy_stats
 from momentum_scanner import find_momentum_leaders, print_momentum_leaders
 import argparse
+import os
 
-BOT_NAME = "default_bot"
+
+
+BOT_NAME = os.getenv("BOT_NAME", "default_bot")
 STRATEGY = "adaptive"
-
-
 
 
 
@@ -368,6 +369,8 @@ def print_market_pulse(data, symbol_data, leaders):
     print("\nAI TRADING LAB")
     print("--------------")
 
+    print(f"BOT: {BOT_NAME}")
+
     # Market regime
     regimes = regime_history(data)
     regime = regimes[-1] if regimes else "UNKNOWN"
@@ -541,7 +544,10 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    BOT_NAME = args.bot
+
+    if args.bot:
+        BOT_NAME = args.bot
+
     STRATEGY = args.strategy_name
 
     if args.live:

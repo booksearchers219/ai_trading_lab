@@ -408,7 +408,8 @@ def run_live_simulation(universe=None, crypto_universe=None):
                 continue
 
             try:
-                returns = data["Close"].pct_change().dropna()
+                returns = data["Close"].pct_change(fill_method=None).dropna()
+
                 vol = returns.std() * 100
 
                 if vol < MIN_VOLATILITY:
