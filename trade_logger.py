@@ -2,7 +2,11 @@ import csv
 import os
 from datetime import datetime
 
-TRADE_LOG = "trade_log.csv"
+
+
+BOT_NAME = os.getenv("BOT_NAME", "default_bot")
+
+filename = f"trade_log_{BOT_NAME}.csv"
 
 
 def log_trade(strategy, ticker, action, price, shares):

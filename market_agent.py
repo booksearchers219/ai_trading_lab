@@ -22,6 +22,13 @@ from dashboard import print_market, print_signals
 from trend_panel import print_trend_panel, print_market_breadth
 from strategy_stats import record_trade, print_strategy_stats
 from momentum_scanner import find_momentum_leaders, print_momentum_leaders
+import argparse
+
+BOT_NAME = "default_bot"
+STRATEGY = "adaptive"
+
+
+
 
 
 def print_opportunity_heatmap(signals):
@@ -475,6 +482,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AI Trading Lab")
 
+    parser.add_argument("--bot", default="default_bot")
+
+    parser.add_argument("--strategy_name", default="adaptive")
+
     parser.add_argument("--ticker", type=str, default="TSLA",
                         help="Stock ticker to analyze")
 
@@ -530,6 +541,8 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    BOT_NAME = args.bot
+    STRATEGY = args.strategy_name
 
     if args.live:
 
@@ -1040,7 +1053,8 @@ if __name__ == "__main__":
     plt.tight_layout()
 
     # save chart
-    plt.savefig("chart.png", dpi=300)
+    plt.savefig(f"chart_{BOT_NAME}.png", dpi=300)
+
     # print("Displaying chart window...")
 
     # plt.show()

@@ -1,7 +1,12 @@
 import json
 import os
 
-STATE_FILE = "live_state.json"
+
+
+BOT_NAME = os.getenv("BOT_NAME", "default_bot")
+
+
+STATE_FILE = f"portfolio_state_{BOT_NAME}.json"
 
 
 def save_state(state):
