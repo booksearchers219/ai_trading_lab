@@ -6,7 +6,8 @@ from datetime import datetime
 
 BOT_NAME = os.getenv("BOT_NAME", "default_bot")
 
-filename = f"trade_log_{BOT_NAME}.csv"
+TRADE_LOG = f"trade_log_{BOT_NAME}.csv"
+
 
 
 def log_trade(strategy, ticker, action, price, shares):

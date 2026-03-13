@@ -17,6 +17,9 @@ import pytz
 import shutil
 import json
 
+BOT_NAME = os.getenv("BOT_NAME", "default_bot")
+
+
 
 MAX_POSITIONS = 20
 MAX_RISK_PER_TRADE = 0.02
@@ -163,6 +166,8 @@ def run_live_simulation(universe=None, crypto_universe=None):
         os.system("clear")
 
         print("========== AI TRADING LAB ==========")
+        print(f"BOT: {BOT_NAME}")
+
         print("-" * shutil.get_terminal_size().columns)
 
         eastern = pytz.timezone("US/Eastern")
@@ -1012,7 +1017,6 @@ def run_live_simulation(universe=None, crypto_universe=None):
                 reason = " ".join([f"{k}={v}" for k, v in vote_details.items()])
                 print(f"Reason: {reason} ({vote_strength} votes)")
 
-                portfolio.sell(ticker, price, held)
 
                 portfolio.sell(ticker, price, held)
 
@@ -1146,7 +1150,7 @@ def run_live_simulation(universe=None, crypto_universe=None):
         else:
             print("Rotation Signal  : NO")
 
-        log_equity({"MA": portfolio_value, "MR": portfolio_value, "AD": portfolio_value})
+        log_equity({BOT_NAME: portfolio_value})
 
         strategy_equity["MA"] = portfolio_value
         strategy_equity["MR"] = portfolio_value
