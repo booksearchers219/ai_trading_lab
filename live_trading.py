@@ -1150,7 +1150,11 @@ def run_live_simulation(universe=None, crypto_universe=None):
         else:
             print("Rotation Signal  : NO")
 
-        log_equity({BOT_NAME: portfolio_value})
+        log_equity({
+            "MA": portfolio_value,
+            "MR": portfolio_value,
+            "AD": portfolio_value
+        })
 
         strategy_equity["MA"] = portfolio_value
         strategy_equity["MR"] = portfolio_value
