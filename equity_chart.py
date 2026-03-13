@@ -10,10 +10,13 @@ import os
 def generate_equity_chart():
     print("DEBUG: generating equity chart...")
 
-    if not os.path.exists("equity_log.csv"):
+    BOT_NAME = os.getenv("BOT_NAME", "default_bot")
+    logfile = f"equity_log_{BOT_NAME}.csv"
+
+    if not os.path.exists(logfile):
         return
 
-    df = pd.read_csv("equity_log.csv")
+    df = pd.read_csv(logfile)
 
     # convert timestamp
     df["timestamp"] = pd.to_datetime(df["timestamp"])
