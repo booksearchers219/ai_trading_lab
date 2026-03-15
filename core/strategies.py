@@ -3,6 +3,9 @@ import numpy as np
 
 def analyze_market(data, short_window=3, long_window=10):
 
+    if short_window is None or long_window is None:
+        return "HOLD"
+
     closes = data["Close"]
 
     if len(closes) < long_window:
@@ -127,60 +130,6 @@ def voting_strategy(data, state):
 
     return decision
 
-def council_strategy(data, state):
-
-    regime = detect_regime(data)
-
-    if regime == "TRENDING":
-        strategies = state.get("trend_strategies", [])
-    else:
-        strategies = state.get("sideways_strategies", [])
-
-    if not strategies:
-
-        ma_signal = analyze_market(data)
-        mr_signal = mean_reversion_strategy(data)
-        ad_signal = adaptive_strategy(data, state)
-
-        signals = [ma_signal, mr_signal, ad_signal]
-
-        decision = strategy_vote(signals)
-
-        if state.get("debug"):
-            print("Council fallback vote:", signals, "→", decision)
-
-        return decision
-
-    buy_weight = 0
-    sell_weight = 0
-
-    signals = []
-
-    for short, long, sharpe in strategies:
-
-        signal = analyze_market(data, short, long)
-
-        signals.append(signal)
-
-        if signal == "BUY":
-            buy_weight += sharpe
-
-        if signal == "SELL":
-            sell_weight += sharpe
-
-    if buy_weight > sell_weight and buy_weight > 0:
-        decision = "BUY"
-
-    elif sell_weight > buy_weight and sell_weight > 0:
-        decision = "SELL"
-
-    else:
-        decision = "HOLD"
-
-    if state.get("debug"):
-        print(f"{regime} council votes:", signals, "→", decision)
-
-    return decision
 
 def volatility_breakout_strategy(data):
 
@@ -191,13 +140,55 @@ def volatility_breakout_strategy(data):
     if len(closes) < 20:
         return "HOLD"
 
-    # Today's range
     today_range = highs.iloc[-1] - lows.iloc[-1]
 
-    # Average range over last 10 days
-    avg_range = (highs - lows).rolling(window=10).mean().iloc[-2]
+    avg_range_series = (highs - lows).rolling(window=10).mean()
+
+    avg_range = avg_range_series.iloc[-2]
+
+    if np.isnan(avg_range):
+        return "HOLD"
 
     if today_range > avg_range * 1.5:
         return "BUY"
 
     return "HOLD"
+
+
+
+def council_strategy(data, state):
+
+    votes = []
+
+    vote_ma = analyze_market(data)
+    vote_mr = mean_reversion_strategy(data)
+    vote_ad = adaptive_strategy(data, state.setdefault("adaptive_state", {}))
+    vote_vol = volatility_breakout_strategy(data)
+
+    votes = [vote_ma, vote_mr, vote_ad, vote_vol]
+
+    buy_votes = votes.count("BUY")
+    sell_votes = votes.count("SELL")
+
+    if buy_votes >= 3:
+        decision = "BUY"
+    elif sell_votes >= 3:
+        decision = "SELL"
+    else:
+        decision = "HOLD"
+
+    if state.get("debug"):
+
+        print("\nSTRATEGY COUNCIL")
+        print("----------------")
+
+        names = ["MA","MR","AD","VOL"]
+
+        for name,v in zip(names,votes):
+            print(f"{name:<5} {v}")
+
+        confidence = max(buy_votes, sell_votes) / len(votes)
+
+        print(f"\nFINAL DECISION: {decision} ({confidence*100:.0f}% confidence)")
+
+    return decision

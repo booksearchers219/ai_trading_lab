@@ -1,33 +1,41 @@
 import yfinance as yf
-from data_utils import get_recent_data
 
-
-def find_momentum_leaders(data_cache, top_n=5):
+def find_momentum_leaders(tickers, top_n=5):
 
     results = []
 
-    for ticker, data in data_cache.items():
+    data = yf.download(
+        tickers,
+        period="1mo",
+        group_by="ticker",
+        auto_adjust=True,
+        threads=True
+    )
 
-        if data is None or len(data) < 2:
+    for ticker in tickers:
+
+        try:
+            close = data[ticker]["Close"]
+
+            if len(close) < 2:
+                continue
+
+            prev = close.iloc[-2]
+            curr = close.iloc[-1]
+
+            if prev == 0:
+                continue
+
+            pct = float((curr - prev) / prev)
+
+            results.append((ticker, pct))
+
+        except Exception:
             continue
-
-        close = data["Close"]
-
-        prev = close.iloc[-2]
-        curr = close.iloc[-1]
-
-        if prev == 0:
-            continue
-
-        pct = float((curr - prev) / prev)
-
-        results.append((ticker, pct))
 
     results.sort(key=lambda x: x[1], reverse=True)
 
     return results[:top_n]
-
-
 
 def print_momentum_leaders(leaders):
 

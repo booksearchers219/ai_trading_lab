@@ -1,5 +1,5 @@
 from backtest_utils import run_backtest, calculate_sharpe
-from strategies import analyze_market, mean_reversion_strategy, adaptive_strategy, detect_regime
+from core.strategies import analyze_market, mean_reversion_strategy, adaptive_strategy, detect_regime
 
 
 def process_ticker(args):

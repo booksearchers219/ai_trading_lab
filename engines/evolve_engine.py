@@ -1,6 +1,6 @@
 import random
 from data_utils import get_recent_data
-from strategies import analyze_market
+from core.strategies import analyze_market
 from backtest_utils import run_backtest, calculate_sharpe
 
 

@@ -1,5 +1,5 @@
-from strategies import analyze_market, mean_reversion_strategy, adaptive_strategy
-from strategies import regime_history
+from core.strategies import analyze_market, mean_reversion_strategy, adaptive_strategy
+from core.strategies import regime_history
 
 
 def generate_signals(prices, data_cache, adaptive_state):

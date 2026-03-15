@@ -1,22 +1,25 @@
 import os
 import time
+import math
+import json
+import shutil
+from datetime import datetime, timedelta
+
 import yfinance as yf
+import pytz
 
 from data_utils import get_recent_data
-from equity_chart import generate_equity_chart
-from equity_logger import log_equity
-from portfolio import Portfolio
-from portfolio_state import save_state, load_state
-from strategies import analyze_market, mean_reversion_strategy, adaptive_strategy
-from strategies import regime_history
-from trade_charts import generate_trade_chart
-from trade_logger import log_trade
-import math
-from datetime import datetime, timedelta
-import pytz
-import shutil
-import json
 
+from charts.equity_chart import generate_equity_chart
+from charts.trade_charts import generate_trade_chart
+
+from core.portfolio import Portfolio
+from core.portfolio_state import save_state, load_state
+from core.strategies import analyze_market, mean_reversion_strategy, adaptive_strategy
+from core.strategies import regime_history
+
+from equity_logger import log_equity
+from trade_logger import log_trade
 BOT_NAME = os.getenv("BOT_NAME", "default_bot")
 
 

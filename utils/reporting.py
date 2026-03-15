@@ -51,12 +51,19 @@ def rolling_sharpe(equity_curve, window=20):
 
 def plot_strategy_landscape(results):
 
-    shorts = sorted(set(r[1] for r in results))
-    longs = sorted(set(r[2] for r in results))
+    shorts = sorted(set(r[1] for r in results if r[1] is not None))
+    longs = sorted(set(r[2] for r in results if r[2] is not None))
 
     heatmap = np.zeros((len(shorts), len(longs)))
 
     for strat, s, l, sharpe in results:
+
+        # Only plot MA strategies (both params exist)
+        if s is None or l is None:
+            continue
+
+        if s not in shorts or l not in longs:
+            continue
 
         i = shorts.index(s)
         j = longs.index(l)
@@ -82,4 +89,4 @@ def plot_strategy_landscape(results):
     plt.title("Moving Average Strategy Landscape")
 
     plt.tight_layout()
-    plt.show()
+    # plt.show()

@@ -6,7 +6,7 @@ import numpy as np
 from data_utils import get_recent_data
 from workers.lab_worker import lab_worker
 from utils.reporting import plot_strategy_landscape
-
+from core.strategy_registry import STRATEGY_REGISTRY
 
 def run_strategy_lab(args):
 
@@ -18,19 +18,32 @@ def run_strategy_lab(args):
 
     results = []
 
-    short_windows = range(3, 120)
-    long_windows = range(10, 400)
 
     jobs = []
 
-    for s in short_windows:
-        for l in long_windows:
+    for name, strat in STRATEGY_REGISTRY.items():
 
-            if s >= l:
-                continue
+        params = strat["params"]
 
-            jobs.append((s, l, tickers, data_cache))
+        if name == "MA":
 
+            for s in params["short"]:
+                for l in params["long"]:
+
+                    if s >= l:
+                        continue
+
+                    jobs.append((name, s, l, tickers, data_cache))
+
+        elif name == "MR":
+
+            for lb in params["lookback"]:
+                jobs.append((name, lb, None, tickers, data_cache))
+
+        elif name == "VOL":
+
+            for w in params["window"]:
+                jobs.append((name, w, None, tickers, data_cache))
     print("Testing", len(jobs), "strategies across CPU cores\n")
 
     pool = mp.Pool(mp.cpu_count())
@@ -45,17 +58,42 @@ def run_strategy_lab(args):
     print("\nTop Strategies Found\n")
 
     for r in results[:20]:
-        print(f"{r[0]} {r[1]}/{r[2]} Sharpe {r[3]:.2f}")
+        name, p1, p2, sharpe = r
+
+        if p2 is not None:
+            param_str = f"{p1}/{p2}"
+        else:
+            param_str = f"{p1}"
+
+        print(f"{name} {param_str} Sharpe {sharpe:.4f}")
 
     print("\nStrategy Scoreboard\n")
 
     print("Top Sharpe Strategies")
+
     for r in results[:10]:
-        print(f"MA {r[1]}/{r[2]}  Sharpe {r[3]:.2f}")
+
+        name, p1, p2, sharpe = r
+
+        if p2 is not None:
+            param_str = f"{p1}/{p2}"
+        else:
+            param_str = f"{p1}"
+
+        print(f"{name} {param_str}  Sharpe {sharpe:.2f}")
 
     print("\nWorst Strategies")
+
     for r in results[-10:]:
-        print(f"MA {r[1]}/{r[2]}  Sharpe {r[3]:.2f}")
+
+        name, p1, p2, sharpe = r
+
+        if p2 is not None:
+            param_str = f"{p1}/{p2}"
+        else:
+            param_str = f"{p1}"
+
+        print(f"{name} {param_str}  Sharpe {sharpe:.2f}")
 
     sharpes = [r[3] for r in results]
 
@@ -76,10 +114,13 @@ def run_strategy_lab(args):
             reader = csv.DictReader(f)
 
             for row in reader:
+                short_val = int(row["Short"]) if row["Short"] else None
+                long_val = int(row["Long"]) if row["Long"] else None
+
                 existing.append((
-                    "MA",
-                    int(row["Short"]),
-                    int(row["Long"]),
+                    row["Strategy"],
+                    short_val,
+                    long_val,
                     float(row["Sharpe"])
                 ))
 
@@ -93,12 +134,19 @@ def run_strategy_lab(args):
 
     for strat in combined:
 
-        _, short, long, sharpe = strat
+        name, p1, p2, sharpe = strat
 
         too_close = False
 
         for s in survivors:
-            if abs(short - s[1]) < min_gap and abs(long - s[2]) < min_gap:
+
+            s_name, s_p1, s_p2, _ = s
+
+            # Skip strategies that don't have two parameters
+            if p2 is None or s_p2 is None:
+                continue
+
+            if abs(p1 - s_p1) < min_gap and abs(p2 - s_p2) < min_gap:
                 too_close = True
                 break
 
