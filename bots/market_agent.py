@@ -1,5 +1,8 @@
 import sys
 import os
+import logging
+from datetime import datetime
+import os
 from engines.walkforward_engine import walkforward_test
 import argparse
 import numpy as np
@@ -31,8 +34,9 @@ from visualization import *
 from dashboard.ai_dashboard import print_ai_dashboard
 from dashboard.dashboard import print_market, print_signals
 from trend_panel import print_trend_panel, print_market_breadth
-
+from trade_logger import log_trade
 from scanners.momentum_scanner import find_momentum_leaders, print_momentum_leaders
+from core.regime_brain import decide_strategy_mode
 
 
 BOT_NAME = os.getenv("BOT_NAME", "default_bot")
@@ -287,6 +291,8 @@ def compute_sector_strength(data):
 
 
 def print_market_regime(data):
+
+
     regimes = regime_history(data)
 
     if not regimes:
@@ -559,6 +565,8 @@ if __name__ == "__main__":
     parser.add_argument("--live", action="store_true",
                         help="Run live portfolio simulation")
 
+    parser.add_argument("--log", action="store_true", help="log output to file")
+
     # parser.add_argument("--discover", action="store_true",
     #                   help="Run automatic strategy discovery")
 
@@ -595,9 +603,72 @@ if __name__ == "__main__":
         help="Run autonomous AI research cycle"
     )
 
+    parser.add_argument(
+        "--daemon",
+        action="store_true",
+        help="Run continuous AI trading loop"
+    )
 
 
     args = parser.parse_args()
+
+
+
+    if args.log:
+
+        os.makedirs("logs", exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+        ticker = "market"
+        if hasattr(args, "ticker"):
+            ticker = args.ticker
+
+        logfile = f"logs/{ticker}_{timestamp}.log"
+
+
+        class Tee:
+            def __init__(self, *files):
+                self.files = files
+
+            def write(self, obj):
+                for f in self.files:
+                    f.write(obj)
+                    f.flush()
+
+            def flush(self):
+                for f in self.files:
+                    f.flush()
+
+
+        log_file = open(logfile, "a")
+
+        sys.stdout = Tee(sys.stdout, log_file)
+        sys.stderr = Tee(sys.stderr, log_file)
+
+        print(f"Logging to {logfile}")
+
+        if args.daemon:
+
+            import time
+
+            print("\nDaemon mode active")
+
+            while True:
+
+                try:
+                    print("\nAI TRADING CYCLE START")
+
+                    run_autonomous_cycle()
+
+                except Exception as e:
+                    print("Daemon error:", e)
+
+                print("Sleeping 15 minutes...\n")
+
+                time.sleep(900)
+
+
 
     if args.bot:
         BOT_NAME = args.bot
@@ -766,6 +837,17 @@ if __name__ == "__main__":
 
     portfolio_results = {}
 
+    regimes = regime_history(data)
+    market_regime = regimes[-1] if regimes else "UNKNOWN"
+
+    volatility_regime = detect_volatility_regime(data)
+
+    mode = decide_strategy_mode(market_regime, volatility_regime)
+
+    print("\nAI MARKET MODE")
+    print("--------------")
+    print(mode)
+
     print("\nRUNNING PORTFOLIO BACKTEST")
     print("--------------------------")
 
@@ -798,12 +880,20 @@ if __name__ == "__main__":
 
     # ----- Strategy Council Snapshot -----
 
-    vote_ma = analyze_market(data)
-    vote_mr = mean_reversion_strategy(data)
-    vote_ad = adaptive_strategy(data, {})
-    vote_vol = volatility_breakout_strategy(data)
+    votes = []
 
-    council_votes = [vote_ma, vote_mr, vote_ad, vote_vol]
+    if mode in ["TREND", "NEUTRAL"]:
+        votes.append(analyze_market(data))
+
+    if mode in ["MEAN_REVERSION", "NEUTRAL"]:
+        votes.append(mean_reversion_strategy(data))
+
+    if mode != "DEFENSIVE":
+        votes.append(adaptive_strategy(data, {}))
+
+    votes.append(volatility_breakout_strategy(data))
+
+    council_votes = votes
 
     buy_votes = council_votes.count("BUY")
     sell_votes = council_votes.count("SELL")
@@ -822,44 +912,48 @@ if __name__ == "__main__":
     print("\nDNA STRATEGY EVOLUTION")
     print("----------------------")
 
-    population = [random_gene() for _ in range(30)]
+    population = [random_gene() for _ in range(40)]
 
-    print(f"Initial population: {len(population)} strategies")
+    generations = 5
 
-    population_scores = []
+    for g in range(generations):
 
-    for gene in population:
+        print(f"\nGeneration {g + 1}")
 
-        strat, p1, p2 = gene
+        population_scores = []
 
-        try:
+        for gene in population:
 
-            if strat == "MA":
-                equity, final, *_ = run_backtest(
-                    data,
-                    lambda d: analyze_market(d, p1, p2)
-                )
+            strat, p1, p2 = gene
 
-            elif strat == "MR":
-                equity, final, *_ = run_backtest(
-                    data,
-                    lambda d: mean_reversion_strategy(d, -p1 / 100)
-                )
+            try:
 
-            elif strat == "VOL":
-                equity, final, *_ = run_backtest(
-                    data,
-                    volatility_breakout_strategy
-                )
+                if strat == "MA":
+                    equity, final, *_ = run_backtest(
+                        data,
+                        lambda d: analyze_market(d, p1, p2)
+                    )
 
-            sharpe = calculate_sharpe(equity)
+                elif strat == "MR":
+                    equity, final, *_ = run_backtest(
+                        data,
+                        lambda d: mean_reversion_strategy(d, -p1 / 100)
+                    )
 
-        except Exception:
-            sharpe = -999
+                elif strat == "VOL":
+                    equity, final, *_ = run_backtest(
+                        data,
+                        volatility_breakout_strategy
+                    )
 
-        population_scores.append((gene, sharpe))
+                sharpe = calculate_sharpe(equity)
 
-    population = evolve_dna(population_scores)
+            except Exception:
+                sharpe = -999
+
+            population_scores.append((gene, sharpe))
+
+        population = evolve_dna(population_scores)
 
     print(f"Next generation created: {len(population)} strategies")
 
@@ -1017,6 +1111,26 @@ if __name__ == "__main__":
 
     weights = allocate_by_sharpe(strategy_sharpes)
 
+    capital = 10000
+
+    print("\nAI CAPITAL ALLOCATION")
+    print("---------------------")
+
+    for strat, weight in weights.items():
+        allocation = capital * weight
+
+        print(f"{strat:<5} ${allocation:,.0f} ({weight * 100:.1f}%)")
+
+
+
+        if mode == "DEFENSIVE":
+            print("\nDEFENSIVE MODE ACTIVATED")
+            print("------------------------")
+
+            capital *= 0.5
+
+            print(f"Capital reduced to ${capital:,.0f}")
+
     print("\nSTRATEGY HEALTH MONITOR")
     print("-----------------------")
 
@@ -1129,7 +1243,29 @@ if __name__ == "__main__":
     ma_max_dd = max_drawdown(ma_drawdown)
     mr_max_dd = max_drawdown(mr_drawdown)
     adaptive_max_dd = max_drawdown(adaptive_drawdown)
+
+    MAX_DRAWDOWN_LIMIT = 0.25
+
+    if ma_max_dd > MAX_DRAWDOWN_LIMIT:
+        print("⚠ MA strategy halted due to drawdown")
+
+    if mr_max_dd > MAX_DRAWDOWN_LIMIT:
+        print("⚠ MR strategy halted due to drawdown")
+
+    if adaptive_max_dd > MAX_DRAWDOWN_LIMIT:
+        print("⚠ Adaptive strategy halted due to drawdown")
     bh_max_dd = max_drawdown(bh_drawdown)
+
+    MAX_DRAWDOWN_LIMIT = 0.25
+
+    if ma_max_dd > MAX_DRAWDOWN_LIMIT:
+        print("⚠ MA strategy halted due to drawdown")
+
+    if mr_max_dd > MAX_DRAWDOWN_LIMIT:
+        print("⚠ MR strategy halted due to drawdown")
+
+    if adaptive_max_dd > MAX_DRAWDOWN_LIMIT:
+        print("⚠ Adaptive strategy halted due to drawdown")
 
     ma_roll = rolling_sharpe(ma_equity)
     mr_roll = rolling_sharpe(mr_equity)
@@ -1196,12 +1332,41 @@ if __name__ == "__main__":
     for p in ma_profits:
         record_trade("MA", p)
 
-    for p in mr_profits:
-        record_trade("MR", p)
+        log_trade(
+            ticker,
+            "TRADE",
+            1,
+            p,
+            "MA",
+            0,
+            ma_final
+        )
 
     for p in ad_profits:
         record_trade("AD", p)
 
+        log_trade(
+            ticker,
+            "TRADE",
+            1,
+            p,
+            "AD",
+            0,
+            adaptive_final
+        )
+
+    for p in mr_profits:
+        record_trade("MR", p)
+
+        log_trade(
+            ticker,
+            "TRADE",
+            1,
+            p,
+            "MR",
+            0,
+            mr_final
+        )
     print_strategy_stats()
 
     print("\nMoving Average")

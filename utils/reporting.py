@@ -54,7 +54,7 @@ def plot_strategy_landscape(results):
     shorts = sorted(set(r[1] for r in results if r[1] is not None))
     longs = sorted(set(r[2] for r in results if r[2] is not None))
 
-    heatmap = np.zeros((len(shorts), len(longs)))
+    heatmap = np.full((len(shorts), len(longs)), np.nan)
 
     for strat, s, l, sharpe in results:
 
@@ -90,3 +90,5 @@ def plot_strategy_landscape(results):
 
     plt.tight_layout()
     # plt.show()
+    plt.savefig("reports/strategy_landscape.png")
+    plt.close()

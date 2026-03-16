@@ -1,5 +1,6 @@
 import numpy as np
 
+MA_CACHE = {}
 
 def analyze_market(data, short_window=3, long_window=10):
 
@@ -11,8 +12,17 @@ def analyze_market(data, short_window=3, long_window=10):
     if len(closes) < long_window:
         return "HOLD"
 
-    short_ma = closes.rolling(window=short_window).mean().iloc[-1]
-    long_ma = closes.rolling(window=long_window).mean().iloc[-1]
+    key_short = (id(data), short_window)
+    key_long = (id(data), long_window)
+
+    if key_short not in MA_CACHE:
+        MA_CACHE[key_short] = closes.rolling(window=short_window).mean()
+
+    if key_long not in MA_CACHE:
+        MA_CACHE[key_long] = closes.rolling(window=long_window).mean()
+
+    short_ma = MA_CACHE[key_short].iloc[-1]
+    long_ma = MA_CACHE[key_long].iloc[-1]
 
     if short_ma > long_ma:
         return "BUY"

@@ -2,36 +2,34 @@ import csv
 import os
 from datetime import datetime
 
+TRADE_FILE = "trade_history.csv"
 
+def log_trade(symbol, action, shares, price, strategy, cash_after, equity_after):
 
-BOT_NAME = os.getenv("BOT_NAME", "default_bot")
+    file_exists = os.path.exists(TRADE_FILE)
 
-TRADE_LOG = f"trade_log_{BOT_NAME}.csv"
-
-
-
-def log_trade(strategy, ticker, action, price, shares):
-
-    file_exists = os.path.exists(TRADE_LOG)
-
-    with open(TRADE_LOG, "a", newline="") as f:
+    with open(TRADE_FILE, "a", newline="") as f:
         writer = csv.writer(f)
 
         if not file_exists:
             writer.writerow([
                 "timestamp",
-                "strategy",
-                "ticker",
+                "symbol",
                 "action",
+                "shares",
                 "price",
-                "shares"
+                "strategy",
+                "cash_after",
+                "equity_after"
             ])
 
         writer.writerow([
             datetime.now().isoformat(),
-            strategy,
-            ticker,
+            symbol,
             action,
+            shares,
             price,
-            shares
+            strategy,
+            cash_after,
+            equity_after
         ])
