@@ -23,9 +23,15 @@ echo ""
 
 git add .
 
+# Check if anything changed
+if git diff --cached --quiet; then
+    echo "No changes to commit."
+    exit 0
+fi
+
 git commit -m "$msg"
 
-git tag "$tag"
+git tag -a "$tag" -m "$msg"
 
 echo ""
 echo "Pushing to GitHub..."
