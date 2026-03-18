@@ -42,6 +42,8 @@ from core.regime_brain import decide_strategy_mode
 BOT_NAME = os.getenv("BOT_NAME", "default_bot")
 STRATEGY = "adaptive"
 
+MAX_DAILY_LOSS = -0.05   # stop trading at -5% daily loss
+
 portfolio_tickers = []
 
 def print_opportunity_heatmap(signals):
@@ -245,11 +247,23 @@ def load_crypto_watchlist(filename="crypto_watchlist.txt"):
 
 
 def get_live_price(ticker):
-    data = yf.Ticker(ticker)
+    try:
+        data = yf.Ticker(ticker)
 
-    price = data.history(period="1d", interval="1m")["Close"].iloc[-1]
+        hist = data.history(period="5d", interval="5m")
 
-    return float(price)
+        if hist.empty:
+            return None
+
+        price = hist["Close"].iloc[-1]
+
+        if price <= 0:
+            return None
+
+        return float(price)
+
+    except Exception:
+        return None
 
 
 def compute_sector_strength(data):
@@ -412,7 +426,10 @@ def print_market_sentiment(symbol_data):
 
 
 def print_market_pulse(data, symbol_data, leaders):
-    print("\nAI TRADING LAB")
+    if args.crypto:
+        print("\nAI CRYPTO TRADING LAB")
+    else:
+        print("\nAI TRADING LAB")
     print("--------------")
 
     print(f"BOT: {BOT_NAME}")
@@ -608,11 +625,97 @@ if __name__ == "__main__":
         action="store_true",
         help="Run continuous AI trading loop"
     )
-
+    parser.add_argument(
+        "--crypto",
+        action="store_true",
+        help="Run crypto market scan"
+    )
 
     args = parser.parse_args()
 
+    if args.crypto:
+        os.environ["BOT_NAME"] = "crypto_bot"
 
+    if args.crypto:
+        print("\nCRYPTO MODE ENABLED")
+        print("-------------------")
+
+        crypto_universe = []
+
+        if not crypto_universe:
+            crypto_universe = [
+                "BTC-USD",
+                "ETH-USD",
+                "SOL-USD",
+                "BNB-USD",
+                "XRP-USD",
+                "ADA-USD",
+                "DOGE-USD",
+                "AVAX-USD",
+                "LINK-USD",
+                "DOT-USD",
+                "LTC-USD",
+                "ATOM-USD",
+                "NEAR-USD",
+                "FIL-USD",
+                "ETC-USD",
+                "XLM-USD",
+                "ARB-USD"
+            ]
+
+        args.scan = "crypto"
+        args.limit = len(crypto_universe)
+
+        print("Crypto Universe:")
+        for c in crypto_universe:
+            print(c)
+
+
+
+    if "--help" in sys.argv or "-h" in sys.argv:
+        print("""
+    AI TRADING LAB COMMANDS
+    =======================
+
+    Live Trading Simulation
+    -----------------------
+    python market_agent.py --live
+
+    Reset Live Trading
+    ------------------
+    python market_agent.py --live --reset
+
+    Run Strategy Lab
+    ----------------
+    python market_agent.py --lab --ticker NVDA
+
+    Scan Market
+    -----------
+    python market_agent.py --scan sp500 --limit 50
+
+    Evolutionary Strategy Search
+    ----------------------------
+    python market_agent.py --evolve --ticker NVDA
+
+    Autonomous Research Cycle
+    -------------------------
+    python market_agent.py --cycle
+
+    Continuous Trading Daemon
+    -------------------------
+    python market_agent.py --daemon
+
+    Parameter Sweep
+    ---------------
+    python market_agent.py --sweep --ticker NVDA
+    """)
+
+        sys.exit()
+
+    if args.crypto:
+        if args.crypto:
+            market_status = "CRYPTO MARKET (24/7)"
+            print("\nMarket: CRYPTO (24/7)")
 
     if args.log:
 
@@ -624,7 +727,7 @@ if __name__ == "__main__":
         if hasattr(args, "ticker"):
             ticker = args.ticker
 
-        logfile = f"logs/{ticker}_{timestamp}.log"
+        logfile = f"logs/{BOT_NAME}_{ticker}_{timestamp}.log"
 
 
         class Tee:
@@ -677,29 +780,17 @@ if __name__ == "__main__":
 
     if args.live:
 
-        if args.reset:
-            import os
+        if args.crypto:
+            universe = []
+            crypto_universe = load_crypto_watchlist()
 
-            files_to_remove = [
-                f"portfolio_state_{BOT_NAME}.json",
-                "live_state.json",
-                "equity_log.csv",
-                "chart.png"
-            ]
-
-            for f in files_to_remove:
-                if os.path.exists(f):
-                    os.remove(f)
-                    print(f"Removed {f}")
-
-            print("Live trading state reset.\n")
-
-        if args.top10:
+        elif args.top10:
             universe = TOP10
+            crypto_universe = []
+
         else:
             universe = load_watchlist()
-
-        crypto_universe = load_crypto_watchlist()
+            crypto_universe = []
 
         print("\nTrading Universe")
         print("----------------")
@@ -707,14 +798,21 @@ if __name__ == "__main__":
         for t in universe:
             print(t)
 
-        run_live_simulation(universe, crypto_universe)
+        if crypto_universe:
+            for c in crypto_universe:
+                print(c)
 
+        run_live_simulation(universe, crypto_universe)
         exit()
 
     ticker = args.ticker.upper()
     months = args.window
 
     if args.scan:
+
+        if args.crypto:
+            args.tickers = crypto_universe
+
         run_scan_and_report(args)
         exit()
 
@@ -748,7 +846,7 @@ if __name__ == "__main__":
 
                 lab_args = argparse.Namespace(
                     ticker=sym,
-                    window=3,
+                    window=12,
                     top=5,
                     report=False
                 )
@@ -756,7 +854,7 @@ if __name__ == "__main__":
                 run_strategy_lab(lab_args)
 
             except Exception as e:
-                print(f"Lab failed for {ticker}: {e}")
+                print(f"Lab failed for {sym}: {e}")
 
 
 
@@ -768,27 +866,39 @@ if __name__ == "__main__":
         run_evolution_search(args)
         exit()
 
+    if args.crypto:
 
+        symbol_data = {}
 
-    # Trend panel data
-    spy_data = get_recent_data("SPY", 1)
-    nvda_data = get_recent_data("NVDA", 1)
-    amd_data = get_recent_data("AMD", 1)
-    tsla_data = get_recent_data("TSLA", 1)
-    meta_data = get_recent_data("META", 1)
+        import time
 
-    symbol_data = {
-        "SPY": spy_data,
-        "NVDA": nvda_data,
-        "AMD": amd_data,
-        "TSLA": tsla_data,
-        "META": meta_data
-    }
+        for sym in crypto_universe:
+            price = get_live_price(sym)
+            time.sleep(0.2)
+
+    else:
+
+        spy_data = get_recent_data("SPY", 6)
+        nvda_data = get_recent_data("NVDA", 6)
+        amd_data = get_recent_data("AMD", 6)
+        tsla_data = get_recent_data("TSLA", 6)
+        meta_data = get_recent_data("META", 6)
+
+        symbol_data = {
+            "SPY": spy_data,
+            "NVDA": nvda_data,
+            "AMD": amd_data,
+            "TSLA": tsla_data,
+            "META": meta_data
+        }
 
     print(f"\nRunning Strategy Comparison on {ticker}\n")
     print("=" * 70)
 
-    leaders = find_momentum_leaders(DISCOVERY_UNIVERSE, top_n=5)
+    if args.crypto:
+        leaders = find_momentum_leaders(crypto_universe, top_n=5)
+    else:
+        leaders = find_momentum_leaders(DISCOVERY_UNIVERSE, top_n=5)
 
     print("\nAUTO STRATEGY DISCOVERY")
     print("-----------------------")
@@ -808,11 +918,12 @@ if __name__ == "__main__":
             )
 
         except Exception as e:
-            print(f"Lab failed for {ticker}: {e}")
+            print(f"Lab failed for {sym}: {e}")
 
-            print_market_pulse(data, symbol_data, leaders)
-
-    data = symbol_data["SPY"]
+    if args.crypto:
+        data = list(symbol_data.values())[0]
+    else:
+        data = symbol_data["SPY"]
 
     print_trend_panel(symbol_data)
     print_market_breadth(symbol_data)
@@ -829,7 +940,39 @@ if __name__ == "__main__":
 
     portfolio_tickers = []
 
-    signals = generate_signals(symbol_data, data_cache, adaptive_state)
+    # --- DATA SAFETY CHECK ---
+    bad_symbols = []
+
+    for symbol, df in symbol_data.items():
+        if df is None or len(df) == 0 or df["Close"].isna().any():
+            bad_symbols.append(symbol)
+
+    if bad_symbols:
+        print("\n⚠ DATA ERROR - Skipping cycle")
+        print("Missing data for:", ", ".join(bad_symbols))
+        signals = []
+    else:
+        signals = generate_signals(symbol_data, data_cache, adaptive_state)
+
+        # --- DAILY LOSS SAFETY ---
+        if hasattr(adaptive_state, "start_equity"):
+
+            current_equity = adaptive_state.get("equity", 0)
+            start_equity = adaptive_state.get("start_equity", current_equity)
+
+            if start_equity > 0:
+
+                daily_return = (current_equity - start_equity) / start_equity
+
+                if daily_return <= MAX_DAILY_LOSS:
+                    print("\n⚠ DAILY LOSS LIMIT HIT")
+                    print(f"Return: {daily_return * 100:.2f}%")
+
+                    print("Trading halted for safety.")
+
+                    sys.exit()
+        # -------------------------
+    # -------------------------
 
     print_opportunity_heatmap(signals)
     print_signal_radar(signals)
@@ -865,6 +1008,8 @@ if __name__ == "__main__":
 
         for sym, val in portfolio_results.items():
             print(f"{sym:<6} ${val:,.2f}")
+
+
 
     # Build portfolio from signals
     portfolio_tickers = []
@@ -962,6 +1107,8 @@ if __name__ == "__main__":
 
     genomes = evolve_population(data)
 
+    league = load_league()  # load once
+
     for g, sharpe in genomes:
 
         strat, p1, p2 = g
@@ -973,45 +1120,38 @@ if __name__ == "__main__":
 
         print(f"{strat} {params} Sharpe {sharpe:.2f}")
 
-        # Update strategy league
-        league = load_league()
+        league.append({
+            "strategy": strat,
+            "short": p1,
+            "long": p2,
+            "sharpe": sharpe,
+            "wins": 0,
+            "losses": 0,
+            "score": sharpe
+        })
 
-        for g, sharpe in genomes:
-            strat, p1, p2 = g
+    league = update_scores(league)
 
-            league.append({
-                "strategy": strat,
-                "short": p1,
-                "long": p2,
-                "sharpe": sharpe,
-                "wins": 0,
-                "losses": 0,
-                "score": sharpe
-            })
+    save_league(league)
 
-        league = update_scores(league)
+    print("\nSTRATEGY LEAGUE TOP 10")
+    print("----------------------")
 
-        save_league(league)
+    for s in league[:10]:
 
-        print("\nSTRATEGY LEAGUE TOP 10")
-        print("----------------------")
+        short = s["short"]
+        long = s["long"]
 
-        for s in league[:10]:
+        if long:
+            params = f"{short}/{long}"
+        else:
+            params = f"{short}"
 
-            short = s["short"]
-            long = s["long"]
-
-            if long:
-                params = f"{short}/{long}"
-            else:
-                params = f"{short}"
-
-            print(
-                f"{s['strategy']} {params} "
-                f"Sharpe:{s['sharpe']:.2f} "
-                f"Score:{s['score']:.2f}"
-            )
-
+        print(
+            f"{s['strategy']} {params} "
+            f"Sharpe:{s['sharpe']:.2f} "
+            f"Score:{s['score']:.2f}"
+        )
 
 
     print("-" * 70)
@@ -1164,7 +1304,7 @@ if __name__ == "__main__":
     bh_final = bh_shares * last_price
 
     bh_equity = []
-    for i in range(50, len(data)):
+    for i in range(30, len(data)):
         price = data["Close"].iloc[i]
         bh_equity.append(bh_shares * price)
 
@@ -1426,7 +1566,9 @@ if __name__ == "__main__":
     ax0.plot(price_series, color="black", linewidth=2, label="Price")
 
     # Regime shading
-    for i in range(len(regimes) - 1):
+    limit = min(len(price_series) - 1, len(regimes))
+
+    for i in range(limit):
 
         if regimes[i] == "TRENDING":
             ax0.axvspan(i, i + 1, color="green", alpha=0.08)
@@ -1496,7 +1638,12 @@ if __name__ == "__main__":
     equity = ma_equity
     regimes = regime_history(data)[50:]
 
-    for i in range(len(equity) - 1):
+    equity = ma_equity
+    regimes = regime_history(data)[50:]
+
+    limit = min(len(equity) - 1, len(regimes))
+
+    for i in range(limit):
 
         if regimes[i] == "TRENDING":
             color = "green"
@@ -1509,6 +1656,7 @@ if __name__ == "__main__":
             color=color,
             linewidth=3
         )
+
     ax1.plot(mr_equity, label="Mean Reversion", linewidth=3, linestyle="--")
     ax1.plot(adaptive_equity, label="Adaptive", linewidth=3)
     ax1.plot(bh_equity, label="Buy & Hold", linewidth=3)

@@ -4,10 +4,15 @@ def print_ai_dashboard(
     council_votes,
     decision,
     confidence,
-    opportunities
+    opportunities,
+    crypto=False
 ):
 
-    print("\nAI TRADING DASHBOARD")
+    if crypto:
+        print("\nAI CRYPTO TRADING DASHBOARD")
+    else:
+        print("\nAI TRADING DASHBOARD")
+
     print("--------------------")
 
     print(f"\nMarket Regime:      {regime}")

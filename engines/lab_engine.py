@@ -12,8 +12,12 @@ def run_strategy_lab(args):
 
     print("\nRunning Strategy Lab\n")
 
-    tickers = ["TSLA", "NVDA", "AAPL", "MSFT", "AMD"]
+    base_universe = ["NVDA", "AAPL", "MSFT", "AMD", "TSLA"]
 
+    if args.ticker:
+        tickers = [args.ticker] + [t for t in base_universe if t != args.ticker]
+    else:
+        tickers = base_universe
     data_cache = {t: get_recent_data(t, args.window) for t in tickers}
 
     results = []

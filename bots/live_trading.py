@@ -20,7 +20,7 @@ from core.strategies import regime_history
 
 from equity_logger import log_equity
 from trade_logger import log_trade
-BOT_NAME = os.getenv("BOT_NAME", "default_bot")
+
 
 
 
@@ -30,9 +30,9 @@ MAX_TICKER_ALLOCATION = 0.10
 MAX_PORTFOLIO_EXPOSURE = 0.65
 STOP_LOSS_PCT = 0.05
 TRAILING_STOP_PCT = 0.05
-SIGNAL_CONFIRM_CYCLES = 3
-MIN_VOLATILITY = 0.5
-MAX_NEW_TRADES_PER_CYCLE = 5
+SIGNAL_CONFIRM_CYCLES = 1
+MIN_VOLATILITY = 0.03
+MAX_NEW_TRADES_PER_CYCLE = 20
 
 
 
@@ -113,6 +113,8 @@ def compute_sector_flow(prices, data_cache):
 
 
 def run_live_simulation(universe=None, crypto_universe=None):
+    BOT_NAME = os.getenv("BOT_NAME", "default_bot")
+
     if universe is None:
         universe = SCAN_UNIVERSE
 
@@ -136,8 +138,6 @@ def run_live_simulation(universe=None, crypto_universe=None):
     strategy_memory = load_strategy_memory()
 
     strategy_weights = regime_weights["UNKNOWN"].copy()
-
-    state = load_state()
 
     state = load_state()
 
@@ -166,7 +166,8 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
     while True:
 
-        os.system("clear")
+        if os.getenv("TERM"):
+            os.system("clear")
 
         print("========== AI TRADING LAB ==========")
         print(f"BOT: {BOT_NAME}")
@@ -176,37 +177,54 @@ def run_live_simulation(universe=None, crypto_universe=None):
         eastern = pytz.timezone("US/Eastern")
         now = datetime.now(eastern)
 
-        market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
-        market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
+        if BOT_NAME == "crypto_bot":
 
-        if market_open <= now <= market_close:
-            market_status = "OPEN"
-            remaining = market_close - now
+            market_status = "CRYPTO (24/7)"
+            hours = 0
+            minutes = 0
+
         else:
-            market_status = "CLOSED"
-            if now < market_open:
-                remaining = market_open - now
-            else:
-                tomorrow = now + timedelta(days=1)
-                market_open = tomorrow.replace(hour=9, minute=30, second=0, microsecond=0)
-                remaining = market_open - now
 
-        hours = remaining.seconds // 3600
-        minutes = (remaining.seconds % 3600) // 60
+            market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
+            market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
+
+            if market_open <= now <= market_close:
+                market_status = "OPEN"
+                remaining = market_close - now
+            else:
+                market_status = "CLOSED"
+
+                if now < market_open:
+                    remaining = market_open - now
+                else:
+                    tomorrow = now + timedelta(days=1)
+                    market_open = tomorrow.replace(hour=9, minute=30, second=0, microsecond=0)
+                    remaining = market_open - now
+
+            hours = remaining.seconds // 3600
+            minutes = (remaining.seconds % 3600) // 60
+
+
 
         print("Time:", now.strftime("%H:%M:%S"), "ET")
-        print(f"Market: {market_status}  ({hours}h {minutes}m remaining)")
+        if crypto_universe:
+            print("Market: CRYPTO (24/7)")
+        else:
+            if BOT_NAME == "crypto_bot":
+                print("Market: CRYPTO (24/7)")
+            else:
+                print(f"Market: {market_status}  ({hours}h {minutes}m remaining)")
         print()
 
         prices = {}
 
-        tickers = " ".join(universe)
+        tickers = " ".join(all_symbols)
 
         try:
             live_data = yf.download(
                 tickers,
-                period="1d",
-                interval="1m",
+                period="5d",
+                interval="5m",
                 group_by="ticker",
                 progress=False
             )
@@ -217,8 +235,13 @@ def run_live_simulation(universe=None, crypto_universe=None):
         if live_data is not None:
 
             for ticker in all_symbols:
+
+                # crypto handled separately
+                if ticker in crypto_universe:
+                    continue
+
                 try:
-                    data_cache[ticker] = get_recent_data(ticker, 1)
+                    data_cache[ticker] = get_recent_data(ticker, 300)
 
                     # Single ticker dataframe
                     if "Close" in live_data and not isinstance(live_data["Close"], yf.pandas.Series):
@@ -273,9 +296,9 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
         if current_time - data_refresh_time > DATA_REFRESH_SECONDS:
 
-            for ticker in universe:
+            for ticker in all_symbols:
                 try:
-                    data_cache[ticker] = get_recent_data(ticker, 1)
+                    data_cache[ticker] = get_recent_data(ticker, 100)
                 except Exception:
                     continue
 
@@ -364,15 +387,40 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
         market_regime = "UNKNOWN"
 
-        market_symbol = universe[0]
+        regimes = []
 
-        spy_data = data_cache.get(market_symbol)
+        for sym in ["BTC-USD", "ETH-USD", "SOL-USD"]:
 
-        if spy_data is not None:
+            data = data_cache.get(sym)
+
+            if data is None:
+                continue
+
             try:
-                market_regime = regime_history(spy_data)[-1]
+                regimes.append(regime_history(data)[-1])
             except Exception:
-                market_regime = "UNKNOWN"
+                continue
+
+        market_regime = "UNKNOWN"
+
+        regimes = []
+
+        for sym in ["BTC-USD", "ETH-USD", "SOL-USD"]:
+
+            data = data_cache.get(sym)
+
+            if data is None:
+                continue
+
+            try:
+                regimes.append(regime_history(data)[-1])
+            except Exception:
+                continue
+
+        if regimes:
+            market_regime = max(set(regimes), key=regimes.count)
+        else:
+            market_regime = "UNKNOWN"
 
         risk_mode = {
             "TRENDING": "AGGRESSIVE",
@@ -417,6 +465,9 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
             try:
                 returns = data["Close"].pct_change(fill_method=None).dropna()
+
+                if len(returns) < 5:
+                    continue
 
                 vol = returns.std() * 100
 
@@ -525,6 +576,8 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
             strategy_matrix[ticker] = signals
 
+            print("DEBUG:", ticker, signals)
+
             debug_line = f"{ticker} "
             for strat_name, vote in signals.items():
                 debug_line += f"{strat_name}:{vote} "
@@ -545,7 +598,7 @@ def run_live_simulation(universe=None, crypto_universe=None):
             combined_signal = "HOLD"
             vote_strength = 0
 
-            if buy_votes >= 2:
+            if buy_votes >= 1:
                 combined_signal = "BUY"
                 vote_strength = buy_votes
 
@@ -579,6 +632,8 @@ def run_live_simulation(universe=None, crypto_universe=None):
         print("-------")
 
         heat_row = ""
+
+        print("DEBUG prices keys:", list(prices.keys()))
 
         for ticker in prices:
 
@@ -697,6 +752,18 @@ def run_live_simulation(universe=None, crypto_universe=None):
         print("\nMARKET PRESSURE")
         print("----------------")
         print(pressure)
+
+        # ----- MARKET QUALITY FILTER -----
+
+        trade_allowed = True
+
+        print("\nMARKET QUALITY")
+        print("--------------")
+
+        if trade_allowed:
+            print("TRADING MODE: ACTIVE")
+        else:
+            print("TRADING MODE: PAUSED (low signal quality)")
 
         print("\nMARKET SENTIMENT")
         print("----------------")
@@ -891,6 +958,9 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
         for strat, signal, ticker, vote_strength, *_ in confirmed_signals:
 
+            if not trade_allowed:
+                continue
+
             now = time.time()
 
             if ticker in cooldowns:
@@ -917,7 +987,17 @@ def run_live_simulation(universe=None, crypto_universe=None):
                 if price <= trailing_stop:
                     print(f"TRAILING STOP triggered for {ticker}")
                     portfolio.sell(ticker, price, held)
-                    log_trade("TRAIL", ticker, "SELL", price, held)
+
+                    log_trade(
+                        ticker,
+                        "SELL",
+                        held,
+                        price,
+                        "TRAIL",
+                        portfolio.cash,
+                        portfolio.total_value(prices)
+                    )
+
                     cooldowns[ticker] = time.time()
                     high_prices.pop(ticker, None)
                     continue
@@ -929,8 +1009,22 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
                 if price <= stop_price:
                     print(f"STOP LOSS triggered for {ticker}")
+
                     portfolio.sell(ticker, price, held)
-                    log_trade("STOP", ticker, "SELL", price, held)
+
+                    log_trade(
+                        ticker,
+                        "SELL",
+                        held,
+                        price,
+                        "STOP",
+                        portfolio.cash,
+                        portfolio.total_value(prices)
+                    )
+
+
+
+                    
                     cooldowns[ticker] = time.time()
                     high_prices.pop(ticker, None)
                     continue
@@ -951,8 +1045,28 @@ def run_live_simulation(universe=None, crypto_universe=None):
             else:
                 risk_multiplier = 0.5
 
+            # --- Volatility-adjusted position sizing ---
+
+            data = data_cache.get(ticker)
+
+            if data is None:
+                continue
+
+            returns = data["Close"].pct_change().dropna()
+            volatility = returns.std()
+
+            if volatility < 0.005:
+                volatility = 0.005
+
+            vol_adjustment = min(2.0, 0.02 / volatility)
+
             risk_amount = portfolio_value * MAX_RISK_PER_TRADE * confidence * risk_multiplier
-            shares = int(risk_amount / price)
+
+            adjusted_risk = risk_amount * vol_adjustment
+
+            shares = int(adjusted_risk / price)
+
+            shares = min(shares, int((portfolio_value * MAX_TICKER_ALLOCATION) / price))
 
             if signal == "BUY" and shares == 0:
                 trade_filters.append(f"{ticker}: position size too small")
@@ -991,7 +1105,15 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
                             portfolio.sell(weakest, w_price, qty)
 
-                            log_trade("ROTATE", weakest, "SELL", w_price, qty)
+                            log_trade(
+                                weakest,
+                                "SELL",
+                                qty,
+                                w_price,
+                                "ROTATE",
+                                portfolio.cash,
+                                portfolio.total_value(prices)
+                            )
 
                             position_scores.pop(weakest, None)
 
@@ -1006,7 +1128,15 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
                 high_prices[ticker] = price
 
-                log_trade("COUNCIL", ticker, "BUY", price, shares)
+                log_trade(
+                    ticker,
+                    "BUY",
+                    shares,
+                    price,
+                    "COUNCIL",
+                    portfolio.cash,
+                    portfolio.total_value(prices)
+                )
 
                 generate_trade_chart(ticker)
 
@@ -1033,23 +1163,24 @@ def run_live_simulation(universe=None, crypto_universe=None):
                     save_strategy_memory(strategy_memory)
                 # --------------------------------
 
+
                 position_scores.pop(ticker, None)
 
-                log_trade("COUNCIL", ticker, "SELL", price, held)
+                log_trade(
+                    ticker,
+                    "SELL",
+                    held,
+                    price,
+                    "COUNCIL",
+                    portfolio.cash,
+                    portfolio.total_value(prices)
+                )
 
                 cooldowns[ticker] = time.time()
 
                 high_prices.pop(ticker, None)
 
-                position_scores.pop(ticker, None)
 
-                log_trade("COUNCIL", ticker, "SELL", price, held)
-
-                cooldowns[ticker] = time.time()
-
-                high_prices.pop(ticker, None)
-
-        time.sleep(2)
 
         if not prices:
             print("\nNo market data this cycle.")
@@ -1200,6 +1331,15 @@ def run_live_simulation(universe=None, crypto_universe=None):
             perf_row += f"{strat}:{pnl_str}   "
 
         print(perf_row)
+
+        cycle_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        print("\nCYCLE SUMMARY")
+        print("-------------")
+        print(f"Time: {cycle_time}")
+        print(f"Portfolio Value: ${portfolio_value:,.2f}")
+        print(f"Open Positions: {len(portfolio.positions)}")
+        print(f"Confirmed Signals: {len(confirmed_signals)}")
 
         generate_equity_chart()
 

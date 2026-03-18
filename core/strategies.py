@@ -2,7 +2,7 @@ import numpy as np
 
 MA_CACHE = {}
 
-def analyze_market(data, short_window=3, long_window=10):
+def analyze_market(data, short_window=10, long_window=50):
 
     if short_window is None or long_window is None:
         return "HOLD"
@@ -12,8 +12,8 @@ def analyze_market(data, short_window=3, long_window=10):
     if len(closes) < long_window:
         return "HOLD"
 
-    key_short = (id(data), short_window)
-    key_long = (id(data), long_window)
+    key_short = (len(data), short_window)
+    key_long = (len(data), long_window)
 
     if key_short not in MA_CACHE:
         MA_CACHE[key_short] = closes.rolling(window=short_window).mean()
@@ -21,13 +21,29 @@ def analyze_market(data, short_window=3, long_window=10):
     if key_long not in MA_CACHE:
         MA_CACHE[key_long] = closes.rolling(window=long_window).mean()
 
-    short_ma = MA_CACHE[key_short].iloc[-1]
-    long_ma = MA_CACHE[key_long].iloc[-1]
+    short_series = MA_CACHE[key_short]
+    long_series = MA_CACHE[key_long]
 
-    if short_ma > long_ma:
-        return "BUY"
-    else:
+    if len(short_series) < 2 or len(long_series) < 2:
         return "HOLD"
+
+    prev_short = short_series.iloc[-2]
+    prev_long = long_series.iloc[-2]
+
+    curr_short = short_series.iloc[-1]
+    curr_long = long_series.iloc[-1]
+
+    # prevent NaN comparisons
+    if np.isnan(prev_short) or np.isnan(prev_long) or np.isnan(curr_short) or np.isnan(curr_long):
+        return "HOLD"
+
+    if prev_short <= prev_long and curr_short > curr_long:
+        return "BUY"
+
+    elif prev_short >= prev_long and curr_short < curr_long:
+        return "SELL"
+
+    return "HOLD"
 
 def mean_reversion_strategy(data, threshold=-0.01):
 

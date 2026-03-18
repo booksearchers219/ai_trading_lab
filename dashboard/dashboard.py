@@ -9,9 +9,13 @@ CYAN = "\033[96m"
 
 
 
-def print_market(prices):
+def print_market(prices, crypto=False):
 
-    print(CYAN + "\nMARKET" + RESET)
+    if crypto:
+        print(CYAN + "\nCRYPTO MARKET (24/7)" + RESET)
+    else:
+        print(CYAN + "\nMARKET" + RESET)
+
     print("------")
 
     items = list(prices.items())

@@ -46,3 +46,27 @@ Thumbs.db
 # -----------------------
 *.png
 *.pdf
+
+*.log
+live_state.json
+portfolio_state_*.json
+.~lock*
+
+# logs
+*.log
+daemon.log
+watchdog.log
+
+# runtime state
+live_state.json
+portfolio_state_*.json
+
+# office temp files
+.~lock*
+
+# python cache
+__pycache__/
+*.pyc
+
+# charts
+chart_*.png

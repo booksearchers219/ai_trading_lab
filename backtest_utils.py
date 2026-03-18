@@ -25,15 +25,16 @@ def run_backtest(data, strategy_function):
     cash = 10000
     shares = 0
     entry_price = None
+    entry_bar = None
 
-    equity_curve = []
+    equity_curve = [cash]
     buy_points = []
     sell_points = []
     trade_profits = []
 
     hold_days = 0
 
-    for i in range(50, len(data)):
+    for i in range(30, len(data)):
 
         recent_data = data.iloc[:i]
 
@@ -55,15 +56,12 @@ def run_backtest(data, strategy_function):
 
         if decision == "BUY" and shares == 0:
 
-            if entry_price is None:
-                entry_price = current_price
-
             risk_per_trade = cash * 0.02
 
             atr = calculate_atr(recent_data)
 
 
-            if atr is None or atr == 0:
+            if atr is None or atr == 0 or np.isnan(atr):
                 shares = 1
             else:
                 shares = max(1, int(risk_per_trade / atr))
@@ -75,8 +73,9 @@ def run_backtest(data, strategy_function):
 
                 cash -= trade_value + cost
                 entry_price = current_price
+                entry_bar = i
 
-                hold_days = 5
+
                 buy_points.append(len(equity_curve))
 
         elif decision == "SELL" and shares > 0:
@@ -107,7 +106,21 @@ def run_backtest(data, strategy_function):
 
             sell_points.append(len(equity_curve))
 
-        elif shares > 0 and hold_days == 0:
+        # take profit
+        if shares > 0 and current_price > entry_price * 1.08:
+            trade_value = shares * current_price
+            cost = trade_value * 0.001
+
+            profit = (current_price - entry_price) * shares
+            trade_profits.append(profit)
+
+            cash += trade_value - cost
+            shares = 0
+
+            sell_points.append(len(equity_curve))
+
+        # max holding period (10 bars)
+        if shares > 0 and entry_bar is not None and i - entry_bar >= 10:
 
             trade_value = shares * current_price
             cost = trade_value * 0.001
@@ -118,16 +131,24 @@ def run_backtest(data, strategy_function):
             cash += trade_value - cost
             shares = 0
 
-        if shares > 0 and hold_days > 0:
-            hold_days -= 1
+            sell_points.append(len(equity_curve))
+
+
 
     final_price = data["Close"].iloc[-1]
     final_value = cash + (shares * final_price)
+
+    equity_curve.append(final_value)
 
     return equity_curve, final_value, buy_points, sell_points, trade_profits
 
 
 def calculate_drawdown(equity_curve):
+
+    if not equity_curve:
+        return [0]
+
+    peak = equity_curve[0]
 
     drawdowns = []
     peak = equity_curve[0]

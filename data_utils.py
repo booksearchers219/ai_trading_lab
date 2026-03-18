@@ -30,7 +30,12 @@ def get_recent_data(ticker, months):
 
     data = stock.history(start=start_date, end=end_date)
 
-    # print("\nBacktest Window")
-    # print(start_date.strftime("%Y-%m-%d"), "→", end_date.strftime("%Y-%m-%d"))
+    # --- CLEAN DATA ---
+    data = data.dropna()
+
+    if data.empty or len(data) < 60:
+        return None
+
+    data = data[["Open", "High", "Low", "Close", "Volume"]]
 
     return data

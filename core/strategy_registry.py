@@ -9,7 +9,7 @@ STRATEGY_REGISTRY = {
         "func": analyze_market,
         "params": {
             "short": range(5, 50, 5),
-            "long": range(20, 200, 10),
+            "long": range(20, 120, 10),
         },
     },
 
