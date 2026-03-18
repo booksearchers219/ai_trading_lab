@@ -633,6 +633,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    print("\n==============================")
+    print("AI TRADING LAB STARTING")
+    print("==============================")
+    print("Bot:", BOT_NAME)
+    print("Crypto Mode:", args.crypto)
+    print("Daemon Mode:", args.daemon)
+    print("Live Mode:", args.live)
+    print("==============================\n")
+
+
     if args.crypto:
         os.environ["BOT_NAME"] = "crypto_bot"
 
@@ -757,19 +767,44 @@ if __name__ == "__main__":
 
             print("\nDaemon mode active")
 
+            print("Crypto mode:", args.crypto)
+            print("Bot:", BOT_NAME)
+
             while True:
 
                 try:
+
                     print("\nAI TRADING CYCLE START")
 
-                    run_autonomous_cycle()
+                    if args.crypto:
+
+                        crypto_universe = load_crypto_watchlist()
+
+                        if not crypto_universe:
+                            crypto_universe = [
+                                "BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD",
+                                "ADA-USD", "DOGE-USD", "AVAX-USD", "LINK-USD", "DOT-USD",
+                                "LTC-USD", "ATOM-USD", "NEAR-USD", "FIL-USD", "ETC-USD",
+                                "XLM-USD", "ARB-USD"
+                            ]
+
+                        run_live_simulation([], crypto_universe)
+
+                    else:
+
+                        universe = load_watchlist()
+
+                        run_live_simulation(universe, [])
 
                 except Exception as e:
+
                     print("Daemon error:", e)
 
                 print("Sleeping 15 minutes...\n")
 
                 time.sleep(900)
+
+
 
 
 

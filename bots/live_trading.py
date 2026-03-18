@@ -31,7 +31,7 @@ MAX_PORTFOLIO_EXPOSURE = 0.65
 STOP_LOSS_PCT = 0.05
 TRAILING_STOP_PCT = 0.05
 SIGNAL_CONFIRM_CYCLES = 1
-MIN_VOLATILITY = 0.03
+MIN_VOLATILITY = 0.01
 MAX_NEW_TRADES_PER_CYCLE = 20
 
 
@@ -121,7 +121,10 @@ def run_live_simulation(universe=None, crypto_universe=None):
     if crypto_universe is None:
         crypto_universe = []
 
-    all_symbols = universe + crypto_universe
+    if crypto_universe:
+        all_symbols = crypto_universe
+    else:
+        all_symbols = universe
 
     strategy_equity = {
         "MA": 30000,
@@ -220,11 +223,17 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
         tickers = " ".join(all_symbols)
 
+        if crypto_universe:
+            interval = "15m"
+        else:
+            interval = "5m"
+
         try:
+
             live_data = yf.download(
                 tickers,
                 period="5d",
-                interval="5m",
+                interval=interval,
                 group_by="ticker",
                 progress=False
             )
@@ -389,23 +398,13 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
         regimes = []
 
-        for sym in ["BTC-USD", "ETH-USD", "SOL-USD"]:
 
-            data = data_cache.get(sym)
+        if crypto_universe:
+            regime_symbols = ["BTC-USD", "ETH-USD", "SOL-USD"]
+        else:
+            regime_symbols = ["SPY", "NVDA", "AAPL"]
 
-            if data is None:
-                continue
-
-            try:
-                regimes.append(regime_history(data)[-1])
-            except Exception:
-                continue
-
-        market_regime = "UNKNOWN"
-
-        regimes = []
-
-        for sym in ["BTC-USD", "ETH-USD", "SOL-USD"]:
+        for sym in regime_symbols:
 
             data = data_cache.get(sym)
 
@@ -545,7 +544,11 @@ def run_live_simulation(universe=None, crypto_universe=None):
             except Exception:
                 pass
 
-            regime = regime_history(data)[-1]
+            history = regime_history(data)
+            if not history:
+                continue
+
+            regime = history[-1]
 
             if regime == "TRENDING":
                 symbol = "🟢"
@@ -959,6 +962,7 @@ def run_live_simulation(universe=None, crypto_universe=None):
         for strat, signal, ticker, vote_strength, *_ in confirmed_signals:
 
             if not trade_allowed:
+                trade_filters.append(f"{ticker}: market quality filter")
                 continue
 
             now = time.time()
@@ -1066,6 +1070,8 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
             shares = int(adjusted_risk / price)
 
+            print("DEBUG position:", ticker, "risk", adjusted_risk, "price", price, "shares", shares)
+
             shares = min(shares, int((portfolio_value * MAX_TICKER_ALLOCATION) / price))
 
             if signal == "BUY" and shares == 0:
@@ -1073,6 +1079,9 @@ def run_live_simulation(universe=None, crypto_universe=None):
                 continue
 
             open_positions = len(portfolio.positions)
+
+            if signal == "BUY" and open_positions >= MAX_POSITIONS:
+                trade_filters.append(f"{ticker}: portfolio full")
 
             if (
                     signal == "BUY"
@@ -1194,6 +1203,16 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
         pl_str = f"+${today_pl:,.2f}" if today_pl >= 0 else f"-${abs(today_pl):,.2f}"
         pct_str = f"+{today_pct:.2f}%" if today_pct >= 0 else f"{today_pct:.2f}%"
+
+        print("\nTRADE FILTERS")
+        print("-------------")
+
+        if trade_filters:
+            for f in trade_filters[:10]:
+                print(f)
+        else:
+            print("None")
+
 
         print("\nPORTFOLIO")
         print("---------")

@@ -49,13 +49,13 @@ def mean_reversion_strategy(data, threshold=-0.01):
 
     closes = data["Close"]
 
-    if len(closes) < 6:
+    if len(closes) < 24:
         return "HOLD"
 
-    five_day_return = (closes.iloc[-1] - closes.iloc[-6]) / closes.iloc[-6]
-    # print("5-day return:", five_day_return)
+    # lookback ~5 hours on 5m candles
+    change = (closes.iloc[-1] - closes.iloc[-60]) / closes.iloc[-24]
 
-    if five_day_return < threshold:
+    if change < threshold:
         return "BUY"
 
     return "HOLD"
@@ -218,3 +218,28 @@ def council_strategy(data, state):
         print(f"\nFINAL DECISION: {decision} ({confidence*100:.0f}% confidence)")
 
     return decision
+
+
+def crash_radar(data):
+
+    closes = data["Close"]
+
+    if len(closes) < 30:
+        return False
+
+    returns = closes.pct_change()
+
+    # last candle move
+    last_move = returns.iloc[-1]
+
+    # short-term drop
+    short_drop = (closes.iloc[-1] - closes.iloc[-12]) / closes.iloc[-12]
+
+    # volatility spike
+    vol = returns.rolling(20).std().iloc[-1]
+
+    # panic selling conditions
+    if short_drop < -0.03 and vol > 0.01 and last_move > -0.01:
+        return True
+
+    return False
