@@ -7,6 +7,7 @@ from engines.walkforward_engine import walkforward_test
 import argparse
 import numpy as np
 import matplotlib
+
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
@@ -38,16 +39,15 @@ from trade_logger import log_trade
 from scanners.momentum_scanner import find_momentum_leaders, print_momentum_leaders
 from core.regime_brain import decide_strategy_mode
 
-
 BOT_NAME = os.getenv("BOT_NAME", "default_bot")
 STRATEGY = "adaptive"
 
-MAX_DAILY_LOSS = -0.05   # stop trading at -5% daily loss
+MAX_DAILY_LOSS = -0.05  # stop trading at -5% daily loss
 
 portfolio_tickers = []
 
-def print_opportunity_heatmap(signals):
 
+def print_opportunity_heatmap(signals):
     print("\nOPPORTUNITY HEATMAP")
     print("-------------------")
 
@@ -58,21 +58,19 @@ def print_opportunity_heatmap(signals):
     counts = {}
 
     for s in signals:
-        ticker = s[2]   # FIXED (ticker is index 2)
+        ticker = s[2]  # FIXED (ticker is index 2)
 
         counts[ticker] = counts.get(ticker, 0) + 1
 
     ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
 
     for ticker, score in ranked[:10]:
-
         bar = "█" * score
 
         print(f"{ticker:<6} {bar:<10} {score}")
 
 
 def rank_opportunities(signals):
-
     ranked = []
 
     for strat, action, ticker, votes in signals:
@@ -90,7 +88,6 @@ def rank_opportunities(signals):
 
 
 def print_signal_radar(signals):
-
     print("\nSIGNAL RADAR")
     print("------------")
 
@@ -101,8 +98,7 @@ def print_signal_radar(signals):
     counts = {}
 
     for s in signals:
-
-        ticker = s[2]   # FIXED
+        ticker = s[2]  # FIXED
         action = s[1]
 
         key = (ticker, action)
@@ -112,11 +108,10 @@ def print_signal_radar(signals):
     ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
 
     for (ticker, action), score in ranked[:10]:
-
         print(f"{ticker:<6} {action:<4} strength {score}")
 
-def print_top_opportunities(signals):
 
+def print_top_opportunities(signals):
     global portfolio_tickers
 
     top_trades = rank_opportunities(signals)[:5]
@@ -153,10 +148,7 @@ def print_top_opportunities(signals):
         print(f"{ticker:<6} score:{score}")
 
 
-
-
 def print_risk_monitor(portfolio, prices):
-
     value = portfolio.total_value(prices)
 
     positions_value = value - portfolio.cash
@@ -305,8 +297,6 @@ def compute_sector_strength(data):
 
 
 def print_market_regime(data):
-
-
     regimes = regime_history(data)
 
     if not regimes:
@@ -642,7 +632,6 @@ if __name__ == "__main__":
     print("Live Mode:", args.live)
     print("==============================\n")
 
-
     if args.crypto:
         os.environ["BOT_NAME"] = "crypto_bot"
 
@@ -679,8 +668,6 @@ if __name__ == "__main__":
         print("Crypto Universe:")
         for c in crypto_universe:
             print(c)
-
-
 
     if "--help" in sys.argv or "-h" in sys.argv:
         print("""
@@ -727,6 +714,15 @@ if __name__ == "__main__":
             market_status = "CRYPTO MARKET (24/7)"
             print("\nMarket: CRYPTO (24/7)")
 
+    # --------------------------------------------------
+    # Bot name override
+    # --------------------------------------------------
+    if args.bot:
+        BOT_NAME = args.bot
+
+    # --------------------------------------------------
+    # Logging setup
+    # --------------------------------------------------
     if args.log:
 
         os.makedirs("logs", exist_ok=True)
@@ -761,58 +757,55 @@ if __name__ == "__main__":
 
         print(f"Logging to {logfile}")
 
-        if args.daemon:
+    # --------------------------------------------------
+    # Daemon mode
+    # --------------------------------------------------
+    if args.daemon:
 
-            import time
+        import time
 
-            print("\nDaemon mode active")
+        print("\nDaemon mode active")
+        print("Crypto mode:", args.crypto)
+        print("Bot:", BOT_NAME)
 
-            print("Crypto mode:", args.crypto)
-            print("Bot:", BOT_NAME)
+        while True:
 
-            while True:
+            try:
 
-                try:
+                print("\n==============================")
+                print("AI TRADING CYCLE START")
+                print("==============================")
 
-                    print("\nAI TRADING CYCLE START")
+                if args.crypto:
 
-                    if args.crypto:
+                    crypto_universe = load_crypto_watchlist()
 
-                        crypto_universe = load_crypto_watchlist()
+                    if not crypto_universe:
+                        crypto_universe = [
+                            "BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD",
+                            "ADA-USD", "DOGE-USD", "AVAX-USD", "LINK-USD", "DOT-USD",
+                            "LTC-USD", "ATOM-USD", "NEAR-USD", "FIL-USD", "ETC-USD",
+                            "XLM-USD", "ARB-USD"
+                        ]
 
-                        if not crypto_universe:
-                            crypto_universe = [
-                                "BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD",
-                                "ADA-USD", "DOGE-USD", "AVAX-USD", "LINK-USD", "DOT-USD",
-                                "LTC-USD", "ATOM-USD", "NEAR-USD", "FIL-USD", "ETC-USD",
-                                "XLM-USD", "ARB-USD"
-                            ]
+                    run_live_simulation([], crypto_universe)
 
-                        run_live_simulation([], crypto_universe)
+                else:
 
-                    else:
+                    universe = load_watchlist()
 
-                        universe = load_watchlist()
+                    run_live_simulation(universe, [])
 
-                        run_live_simulation(universe, [])
+            except Exception as e:
 
-                except Exception as e:
+                print("\n⚠ DAEMON ERROR")
+                print(e)
 
-                    print("Daemon error:", e)
+            print("\nSleeping 15 minutes...\n")
 
-                print("Sleeping 15 minutes...\n")
+            time.sleep(900)
 
-                time.sleep(900)
-
-
-
-
-
-    if args.bot:
-        BOT_NAME = args.bot
-
-    STRATEGY = args.strategy_name
-
+        sys.exit()
     if args.live:
 
         if args.crypto:
@@ -890,8 +883,6 @@ if __name__ == "__main__":
 
             except Exception as e:
                 print(f"Lab failed for {sym}: {e}")
-
-
 
         print("\nCycle complete.")
 
@@ -1049,8 +1040,6 @@ if __name__ == "__main__":
         for sym, val in portfolio_results.items():
             print(f"{sym:<6} ${val:,.2f}")
 
-
-
     # Build portfolio from signals
     portfolio_tickers = []
 
@@ -1193,7 +1182,6 @@ if __name__ == "__main__":
             f"Score:{s['score']:.2f}"
         )
 
-
     print("-" * 70)
     print("\nSECTOR FLOW")
     print("-----------")
@@ -1301,8 +1289,6 @@ if __name__ == "__main__":
 
         print(f"{strat:<5} ${allocation:,.0f} ({weight * 100:.1f}%)")
 
-
-
         if mode == "DEFENSIVE":
             print("\nDEFENSIVE MODE ACTIVATED")
             print("------------------------")
@@ -1325,7 +1311,6 @@ if __name__ == "__main__":
 
         else:
             print(f"{name:<6} ✔ HEALTHY (Sharpe {sharpe:.2f})")
-
 
     print("\nSTRATEGY ALLOCATION")
     print("-------------------")
@@ -1639,8 +1624,6 @@ if __name__ == "__main__":
             ha="center"
         )
 
-
-
     x, y = safe_points(ma_sells, price_series)
     ax0.scatter(x, y, marker="v", color="red", s=80)
 
@@ -1660,7 +1643,6 @@ if __name__ == "__main__":
 
     x, y = safe_points(ad_sells, price_series)
     ax0.scatter(x, y, marker="v", color="magenta", s=160)
-
 
     ax0.set_title(f"{ticker} Price", fontsize=15, fontweight="bold", loc="left")
 
@@ -1730,7 +1712,6 @@ if __name__ == "__main__":
             ha="center"
         )
 
-
     # Mean Reversion trades
     x, y = safe_points(mr_buys, mr_equity)
     ax1.scatter(x, y, marker="^", color="orange", s=80)
@@ -1766,7 +1747,6 @@ if __name__ == "__main__":
         fontweight="bold",
         loc="left"
     )
-
 
     ax1.legend(loc="upper left")
     ax1.grid(True)

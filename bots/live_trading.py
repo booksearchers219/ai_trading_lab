@@ -158,7 +158,7 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
     data_cache = {}
 
-    while True:
+    for _ in range(1):
 
         print("\n==============================")
         print("STARTING NEW TRADING CYCLE")
@@ -1360,9 +1360,7 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
         print()
 
-        for i in range(300, 0, -1):
-            print(f"\rNext cycle in {i} seconds...", end="", flush=True)
-            time.sleep(1)
+        print("\nCycle complete.")
 
         print()
 
