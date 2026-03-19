@@ -21,9 +21,6 @@ from core.strategies import regime_history
 from equity_logger import log_equity
 from trade_logger import log_trade
 
-
-
-
 MAX_POSITIONS = 20
 MAX_RISK_PER_TRADE = 0.02
 MAX_TICKER_ALLOCATION = 0.10
@@ -34,8 +31,6 @@ SIGNAL_CONFIRM_CYCLES = 1
 MIN_VOLATILITY = 0.01
 MAX_NEW_TRADES_PER_CYCLE = 20
 
-
-
 SCAN_UNIVERSE = [
     "SPY",
     "NVDA", "AMD", "TSLA", "META", "AAPL",
@@ -44,8 +39,8 @@ SCAN_UNIVERSE = [
 
 MEMORY_FILE = "strategy_memory.json"
 
-def load_strategy_memory():
 
+def load_strategy_memory():
     if not os.path.exists(MEMORY_FILE):
         return {
             "MA": {"pnl": 0, "trades": 0},
@@ -58,12 +53,8 @@ def load_strategy_memory():
 
 
 def save_strategy_memory(memory):
-
     with open(MEMORY_FILE, "w") as f:
         json.dump(memory, f, indent=2)
-
-
-
 
 
 def compute_sector_flow(prices, data_cache):
@@ -169,6 +160,10 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
     while True:
 
+        print("\n==============================")
+        print("STARTING NEW TRADING CYCLE")
+        print("==============================")
+
         if os.getenv("TERM"):
             os.system("clear")
 
@@ -206,8 +201,6 @@ def run_live_simulation(universe=None, crypto_universe=None):
 
             hours = remaining.seconds // 3600
             minutes = (remaining.seconds % 3600) // 60
-
-
 
         print("Time:", now.strftime("%H:%M:%S"), "ET")
         if crypto_universe:
@@ -397,7 +390,6 @@ def run_live_simulation(universe=None, crypto_universe=None):
         market_regime = "UNKNOWN"
 
         regimes = []
-
 
         if crypto_universe:
             regime_symbols = ["BTC-USD", "ETH-USD", "SOL-USD"]
@@ -1026,9 +1018,6 @@ def run_live_simulation(universe=None, crypto_universe=None):
                         portfolio.total_value(prices)
                     )
 
-
-
-                    
                     cooldowns[ticker] = time.time()
                     high_prices.pop(ticker, None)
                     continue
@@ -1159,7 +1148,6 @@ def run_live_simulation(universe=None, crypto_universe=None):
                 reason = " ".join([f"{k}={v}" for k, v in vote_details.items()])
                 print(f"Reason: {reason} ({vote_strength} votes)")
 
-
                 portfolio.sell(ticker, price, held)
 
                 # --- strategy learning memory ---
@@ -1171,7 +1159,6 @@ def run_live_simulation(universe=None, crypto_universe=None):
                     strategy_memory[strat]["trades"] += 1
                     save_strategy_memory(strategy_memory)
                 # --------------------------------
-
 
                 position_scores.pop(ticker, None)
 
@@ -1188,8 +1175,6 @@ def run_live_simulation(universe=None, crypto_universe=None):
                 cooldowns[ticker] = time.time()
 
                 high_prices.pop(ticker, None)
-
-
 
         if not prices:
             print("\nNo market data this cycle.")
@@ -1212,7 +1197,6 @@ def run_live_simulation(universe=None, crypto_universe=None):
                 print(f)
         else:
             print("None")
-
 
         print("\nPORTFOLIO")
         print("---------")
@@ -1360,7 +1344,13 @@ def run_live_simulation(universe=None, crypto_universe=None):
         print(f"Open Positions: {len(portfolio.positions)}")
         print(f"Confirmed Signals: {len(confirmed_signals)}")
 
-        generate_equity_chart()
+        filename = generate_equity_chart()
+
+        if filename:
+            print("\nEquity report saved:")
+            print(os.path.abspath(filename))
+        else:
+            print("\nEquity chart not created yet.")
 
         save_state({
             "cash": portfolio.cash,
@@ -1368,8 +1358,13 @@ def run_live_simulation(universe=None, crypto_universe=None):
             "entry_prices": portfolio.entry_prices
         })
 
-        time.sleep(300)
+        print()
 
+        for i in range(300, 0, -1):
+            print(f"\rNext cycle in {i} seconds...", end="", flush=True)
+            time.sleep(1)
+
+        print()
 
 if __name__ == "__main__":
     run_live_simulation()

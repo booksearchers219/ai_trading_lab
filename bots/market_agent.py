@@ -905,11 +905,16 @@ if __name__ == "__main__":
 
         symbol_data = {}
 
-        import time
-
         for sym in crypto_universe:
-            price = get_live_price(sym)
-            time.sleep(0.2)
+
+            try:
+                df = get_recent_data(sym, months)
+
+                if df is not None and len(df) > 0:
+                    symbol_data[sym] = df
+
+            except Exception as e:
+                print(f"Data error for {sym}: {e}")
 
     else:
 
@@ -1742,10 +1747,32 @@ if __name__ == "__main__":
 
     ax1.axhline(y=10000, linestyle="--", color="black")
 
-    ax1.set_title(f"{ticker} Strategy Comparison", fontsize=16, fontweight="bold", loc="left")
+    ma_final_val = ma_equity[-1] if ma_equity else 0
+    mr_final_val = mr_equity[-1] if mr_equity else 0
+    ad_final_val = adaptive_equity[-1] if adaptive_equity else 0
+    vote_final_val = vote_equity[-1] if vote_equity else 0
+    council_final_val = council_equity[-1] if council_equity else 0
+    bh_final_val = bh_equity[-1] if bh_equity else 0
+
+    ax1.set_title(
+        f"{ticker} Equity Curves | "
+        f"MA ${ma_final_val:,.0f}  "
+        f"MR ${mr_final_val:,.0f}  "
+        f"AD ${ad_final_val:,.0f}  "
+        f"Vote ${vote_final_val:,.0f}  "
+        f"Council ${council_final_val:,.0f}  "
+        f"BH ${bh_final_val:,.0f}",
+        fontsize=16,
+        fontweight="bold",
+        loc="left"
+    )
+
+
     ax1.legend(loc="upper left")
     ax1.grid(True)
     ax1.yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
+
+    ax1.set_ylabel("Portfolio Value ($)")
 
     ax2.plot(ma_drawdown, label="MA Drawdown", linewidth=3, color="blue")
     ax2.plot(mr_drawdown, label="MR Drawdown", linewidth=3, color="red", linestyle="--")
@@ -1843,8 +1870,12 @@ if __name__ == "__main__":
 
     plt.tight_layout()
 
-    # save chart
-    plt.savefig(f"chart_{ticker}_{BOT_NAME}.png")
+    filename = f"chart_{ticker}_{BOT_NAME}.png"
+
+    plt.savefig(filename)
+
+    print("\nReport saved:")
+    print(" ", os.path.abspath(filename))
 
     # print("Displaying chart window...")
 

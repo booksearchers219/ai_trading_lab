@@ -10,13 +10,21 @@ import os
 def generate_equity_chart():
     print("DEBUG: generating equity chart...")
 
-    BOT_NAME = os.getenv("BOT_NAME", "default_bot")
-    logfile = f"equity_log_{BOT_NAME}.csv"
+    BOT_NAME = "default_bot"
+
+    BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+    logfile = os.path.join(BASE_DIR, f"equity_log_{BOT_NAME}.csv")
+
+    print("DEBUG looking for:", logfile)
 
     if not os.path.exists(logfile):
-        return
+        print("DEBUG: equity log not found yet")
+        return None
+
+
 
     df = pd.read_csv(logfile)
+    print(f"DEBUG rows loaded: {len(df)}")
 
     # convert timestamp
     df["timestamp"] = pd.to_datetime(df["timestamp"])
@@ -46,7 +54,8 @@ def generate_equity_chart():
 
     ax1.axhline(30000, linestyle="--", color="black")
 
-    ax1.set_title("Portfolio Equity")
+    latest_value = df["MA"].iloc[-1]
+    ax1.set_title(f"Portfolio Equity — ${latest_value:,.2f}")
     ax1.set_ylabel("Value ($)")
     ax1.grid(True)
     ax1.legend()
@@ -75,17 +84,23 @@ def generate_equity_chart():
 
     plt.tight_layout()
 
-    output_dir = "reports/live_performance"
+    BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+    output_dir = os.path.join(BASE_DIR, "reports", "live_performance")
     os.makedirs(output_dir, exist_ok=True)
 
     timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     filename = os.path.join(output_dir, f"equity_{timestamp}.png")
 
+    print("DEBUG saving chart to:", filename)
+
+    # save timestamped chart
     plt.savefig(filename)
 
-    # latest snapshot
+    # save latest snapshot
     plt.savefig("chart.png")
 
     plt.close()
+
+    return filename
 
