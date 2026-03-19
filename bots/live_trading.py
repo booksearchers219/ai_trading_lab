@@ -21,12 +21,12 @@ from core.strategies import regime_history
 from equity_logger import log_equity
 from trade_logger import log_trade
 
-MAX_POSITIONS = 20
+MAX_POSITIONS = 10
 MAX_RISK_PER_TRADE = 0.02
 MAX_TICKER_ALLOCATION = 0.10
-MAX_PORTFOLIO_EXPOSURE = 0.65
-STOP_LOSS_PCT = 0.05
-TRAILING_STOP_PCT = 0.05
+MAX_PORTFOLIO_EXPOSURE = 0.85
+STOP_LOSS_PCT = 0.10
+TRAILING_STOP_PCT = 0.12
 SIGNAL_CONFIRM_CYCLES = 1
 MIN_VOLATILITY = 0.01
 MAX_NEW_TRADES_PER_CYCLE = 20
@@ -598,6 +598,11 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
                 combined_signal = "BUY"
                 vote_strength = buy_votes
 
+            recent_return = (data["Close"].iloc[-1] - data["Close"].iloc[-5]) / data["Close"].iloc[-5]
+
+            if combined_signal == "BUY" and recent_return < -0.05:
+                combined_signal = "HOLD"
+
             elif sell_votes >= 2:
                 combined_signal = "SELL"
                 vote_strength = sell_votes
@@ -1048,9 +1053,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             returns = data["Close"].pct_change().dropna()
             volatility = returns.std()
-
-            if volatility < 0.005:
-                volatility = 0.005
+            volatility = max(0.005, min(volatility, 0.10))
 
             vol_adjustment = min(2.0, 0.02 / volatility)
 
@@ -1058,7 +1061,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             adjusted_risk = risk_amount * vol_adjustment
 
-            shares = int(adjusted_risk / price)
+            shares = adjusted_risk / price
 
             print("DEBUG position:", ticker, "risk", adjusted_risk, "price", price, "shares", shares)
 
