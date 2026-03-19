@@ -632,8 +632,27 @@ if __name__ == "__main__":
     print("Live Mode:", args.live)
     print("==============================\n")
 
+    # --------------------------------------------------
+    # Reset live trading state
+    # --------------------------------------------------
+    if args.reset:
+
+        state_file = f"portfolio_state_{BOT_NAME}.json"
+
+        print("\nRESET FLAG DETECTED")
+        print("-------------------")
+
+        if os.path.exists(state_file):
+            os.remove(state_file)
+            print(f"Deleted saved state: {state_file}")
+        else:
+            print("No saved state found.")
+
+        print("Live trading state reset.\n")
+
     if args.crypto:
-        os.environ["BOT_NAME"] = "crypto_bot"
+        BOT_NAME = "crypto_bot"
+        os.environ["BOT_NAME"] = BOT_NAME
 
     if args.crypto:
         print("\nCRYPTO MODE ENABLED")
@@ -717,7 +736,9 @@ if __name__ == "__main__":
     # --------------------------------------------------
     # Bot name override
     # --------------------------------------------------
-    if args.bot:
+    if args.crypto:
+        BOT_NAME = "crypto_bot"
+    elif args.bot:
         BOT_NAME = args.bot
 
     # --------------------------------------------------
@@ -788,13 +809,13 @@ if __name__ == "__main__":
                             "XLM-USD", "ARB-USD"
                         ]
 
-                    run_live_simulation([], crypto_universe)
+                    run_live_simulation([], crypto_universe, BOT_NAME)
 
                 else:
 
                     universe = load_watchlist()
 
-                    run_live_simulation(universe, [])
+                    run_live_simulation(universe, [], BOT_NAME)
 
             except Exception as e:
 
@@ -830,7 +851,7 @@ if __name__ == "__main__":
             for c in crypto_universe:
                 print(c)
 
-        run_live_simulation(universe, crypto_universe)
+        run_live_simulation(universe, crypto_universe, BOT_NAME)
         exit()
 
     ticker = args.ticker.upper()

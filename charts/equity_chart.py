@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 import os
 
 
-def generate_equity_chart():
+def generate_equity_chart(bot_name="default_bot"):
     print("DEBUG: generating equity chart...")
 
-    BOT_NAME = "default_bot"
+    BOT_NAME = bot_name
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
     logfile = os.path.join(BASE_DIR, f"equity_log_{BOT_NAME}.csv")
@@ -90,15 +90,14 @@ def generate_equity_chart():
 
     timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    filename = os.path.join(output_dir, f"equity_{timestamp}.png")
+    filename = os.path.join(output_dir, f"{BOT_NAME}_equity_{timestamp}.png")
 
     print("DEBUG saving chart to:", filename)
 
-    # save timestamped chart
     plt.savefig(filename)
 
-    # save latest snapshot
-    plt.savefig("chart.png")
+    # save latest snapshot per bot
+    plt.savefig(f"chart_{BOT_NAME}.png")
 
     plt.close()
 

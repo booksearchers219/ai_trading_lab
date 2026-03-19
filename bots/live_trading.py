@@ -103,8 +103,9 @@ def compute_sector_flow(prices, data_cache):
     return sector_scores
 
 
-def run_live_simulation(universe=None, crypto_universe=None):
-    BOT_NAME = os.getenv("BOT_NAME", "default_bot")
+def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_bot"):
+    BOT_NAME = bot_name
+    print("DEBUG logger BOT_NAME =", BOT_NAME)
 
     if universe is None:
         universe = SCAN_UNIVERSE
@@ -1291,7 +1292,7 @@ def run_live_simulation(universe=None, crypto_universe=None):
             "MA": portfolio_value,
             "MR": portfolio_value,
             "AD": portfolio_value
-        })
+        }, BOT_NAME)
 
         strategy_equity["MA"] = portfolio_value
         strategy_equity["MR"] = portfolio_value
@@ -1344,7 +1345,7 @@ def run_live_simulation(universe=None, crypto_universe=None):
         print(f"Open Positions: {len(portfolio.positions)}")
         print(f"Confirmed Signals: {len(confirmed_signals)}")
 
-        filename = generate_equity_chart()
+        filename = generate_equity_chart(BOT_NAME)
 
         if filename:
             print("\nEquity report saved:")
@@ -1365,4 +1366,5 @@ def run_live_simulation(universe=None, crypto_universe=None):
         print()
 
 if __name__ == "__main__":
-    run_live_simulation()
+    bot = os.getenv("BOT_NAME", "default_bot")
+    run_live_simulation(bot_name=bot)

@@ -2,16 +2,14 @@ import os
 import csv
 from datetime import datetime
 
-BOT_NAME = os.getenv("BOT_NAME", "default_bot")
 
-EQUITY_LOG = f"equity_log_{BOT_NAME}.csv"
+def log_equity(data, bot_name="default_bot"):
 
+    EQUITY_FILE = f"equity_log_{bot_name}.csv"
 
-def log_equity(strategy_values):
+    file_exists = os.path.exists(EQUITY_FILE)
 
-    file_exists = os.path.exists(EQUITY_LOG)
-
-    with open(EQUITY_LOG, "a", newline="") as f:
+    with open(EQUITY_FILE, "a", newline="") as f:
 
         writer = csv.writer(f)
 
@@ -20,8 +18,7 @@ def log_equity(strategy_values):
 
         writer.writerow([
             datetime.now().isoformat(),
-            strategy_values.get("MA", 0),
-            strategy_values.get("MR", 0),
-            strategy_values.get("AD", 0),
+            data.get("MA", 0),
+            data.get("MR", 0),
+            data.get("AD", 0),
         ])
-
