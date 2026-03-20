@@ -57,7 +57,7 @@ def generate_signals(prices, data_cache, adaptive_state):
         buy_votes = votes.count("BUY")
         sell_votes = votes.count("SELL")
 
-        vote_strength = buy_votes + sell_votes
+        vote_strength = buy_votes - sell_votes
 
 
         if buy_votes >= 2 and not downtrend:
@@ -69,5 +69,8 @@ def generate_signals(prices, data_cache, adaptive_state):
 
     # Rank strongest signals first
     signal_list = sorted(signal_list, key=lambda x: x[3], reverse=True)
+
+    MAX_TRADES = 10
+    signal_list = signal_list[:MAX_TRADES]
 
     return signal_list
