@@ -13,6 +13,20 @@ def generate_signals(prices, data_cache, adaptive_state):
 
         data = data_cache.get(ticker)
 
+        # ----- TREND FILTER -----
+
+        if len(data) >= 200:
+
+            ma200 = data["Close"].rolling(200).mean()
+
+            if data["Close"].iloc[-1] < ma200.iloc[-1]:
+                downtrend = True
+            else:
+                downtrend = False
+
+        else:
+            downtrend = False
+
         if data is None:
             continue
 
@@ -43,7 +57,7 @@ def generate_signals(prices, data_cache, adaptive_state):
 
         vote_strength = buy_votes + sell_votes
 
-        if buy_votes >= 2:
+        if buy_votes >= 2 and not downtrend:
             signal_list.append(("COUNCIL", "BUY", ticker, vote_strength))
 
         elif sell_votes >= 2:
@@ -52,8 +66,7 @@ def generate_signals(prices, data_cache, adaptive_state):
     # Rank strongest signals first
     signal_list = sorted(signal_list, key=lambda x: x[3], reverse=True)
 
-    # Limit number of trades
-    MAX_TRADES = 5
-    signal_list = signal_list[:MAX_TRADES]
+    if not signal_list:
+        return signal_list
 
     return signal_list

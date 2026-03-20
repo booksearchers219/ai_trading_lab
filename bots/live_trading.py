@@ -21,8 +21,8 @@ from core.strategies import regime_history
 from equity_logger import log_equity
 from trade_logger import log_trade
 
-MAX_POSITIONS = 10
-MAX_RISK_PER_TRADE = 0.02
+MAX_POSITIONS = 25
+MAX_RISK_PER_TRADE = 0.04
 MAX_TICKER_ALLOCATION = 0.10
 MAX_PORTFOLIO_EXPOSURE = 0.85
 STOP_LOSS_PCT = 0.10
@@ -117,6 +117,11 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         all_symbols = crypto_universe
     else:
         all_symbols = universe
+
+    if crypto_universe:
+        max_positions = 25
+    else:
+        max_positions = MAX_POSITIONS
 
     strategy_equity = {
         "MA": 30000,
@@ -1035,7 +1040,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             max_allowed = portfolio_value * MAX_TICKER_ALLOCATION
 
-            confidence = vote_strength / 3
+            confidence = min(1.0, vote_strength / 3)
 
             if market_regime == "SIDEWAYS":
                 risk_multiplier = 0.7
@@ -1055,7 +1060,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             volatility = returns.std()
             volatility = max(0.005, min(volatility, 0.10))
 
-            vol_adjustment = min(2.0, 0.02 / volatility)
+            vol_adjustment = max(0.5, min(2.0, 0.02 / volatility))
 
             risk_amount = portfolio_value * MAX_RISK_PER_TRADE * confidence * risk_multiplier
 
@@ -1065,7 +1070,12 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             print("DEBUG position:", ticker, "risk", adjusted_risk, "price", price, "shares", shares)
 
-            shares = min(shares, int((portfolio_value * MAX_TICKER_ALLOCATION) / price))
+            max_shares = (portfolio_value * MAX_TICKER_ALLOCATION) / price
+
+            if crypto_universe:
+                shares = min(shares, max_shares)  # fractional crypto
+            else:
+                shares = min(shares, int(max_shares))  # integer stocks
 
             if signal == "BUY" and shares == 0:
                 trade_filters.append(f"{ticker}: position size too small")
@@ -1073,8 +1083,8 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             open_positions = len(portfolio.positions)
 
-            if signal == "BUY" and open_positions >= MAX_POSITIONS:
-                trade_filters.append(f"{ticker}: portfolio full")
+            if signal == "BUY" and open_positions >= max_positions:
+                trade_filters.append(f"{ticker}: portfolio full - checking rotation")
 
             if (
                     signal == "BUY"
@@ -1082,7 +1092,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
                     and held == 0
                     and current_value < max_allowed
                     and (
-                    open_positions < MAX_POSITIONS
+                    open_positions < max_positions
                     or (
                             open_positions >= MAX_POSITIONS
                             and position_scores
@@ -1092,7 +1102,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             ):
 
                 # Rotate weakest position if portfolio full
-                if open_positions >= MAX_POSITIONS:
+                if open_positions >= max_positions:
 
                     weakest = min(position_scores, key=position_scores.get)
                     weakest_score = position_scores[weakest]

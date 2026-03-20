@@ -78,8 +78,15 @@ def rank_opportunities(signals):
 
     for strat, action, ticker, votes in signals:
 
-        if action != "BUY":
-            continue
+        for strat, action, ticker, votes in signals:
+
+            score = votes * 2
+
+            if action == "BUY":
+                ranked.append((ticker, score))
+
+            elif action == "SELL":
+                ranked.append((ticker, -score))
 
         score = votes * 2
 
