@@ -2,21 +2,23 @@ import json
 import os
 
 
-
-BOT_NAME = os.getenv("BOT_NAME", "default_bot")
-
-
-STATE_FILE = f"portfolio_state_{BOT_NAME}.json"
+def get_state_file(bot_name="default_bot"):
+    return f"portfolio_state_{bot_name}.json"
 
 
-def save_state(state):
+def save_state(state, bot_name="default_bot"):
 
-    with open(STATE_FILE, "w") as f:
+    state_file = get_state_file(bot_name)
+
+    with open(state_file, "w") as f:
         json.dump(state, f, indent=2)
 
-def load_state():
 
-    if not os.path.exists(STATE_FILE):
+def load_state(bot_name="default_bot"):
+
+    state_file = get_state_file(bot_name)
+
+    if not os.path.exists(state_file):
 
         return {
             "cash": 30000,
@@ -24,5 +26,5 @@ def load_state():
             "history": []
         }
 
-    with open(STATE_FILE, "r") as f:
+    with open(state_file, "r") as f:
         return json.load(f)

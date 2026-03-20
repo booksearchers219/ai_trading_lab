@@ -139,7 +139,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
     strategy_weights = regime_weights["UNKNOWN"].copy()
 
-    state = load_state()
+    state = load_state(BOT_NAME)
 
     if state:
         print("Resuming previous session...")
@@ -609,8 +609,29 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             recent_return = (data["Close"].iloc[-1] - data["Close"].iloc[-5]) / data["Close"].iloc[-5]
 
-            if combined_signal == "BUY" and recent_return < -0.05:
-                combined_signal = "HOLD"
+            # ----- MARKET TREND FILTER -----
+
+            market_data = data_cache.get("SPY")
+
+            if market_data is not None:
+
+                spy_ma50 = market_data["Close"].rolling(50).mean().iloc[-1]
+                spy_price = market_data["Close"].iloc[-1]
+
+                market_downtrend = spy_price < spy_ma50
+
+            else:
+                market_downtrend = False
+
+            if combined_signal == "BUY":
+
+                # Avoid catching falling knives
+                if recent_return < -0.05:
+                    combined_signal = "HOLD"
+
+                # Avoid buying when whole market is falling
+                if market_downtrend:
+                    combined_signal = "HOLD"
 
             ma50 = data["Close"].rolling(50).mean().iloc[-1]
 
@@ -1382,7 +1403,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             "cash": portfolio.cash,
             "positions": portfolio.positions,
             "entry_prices": portfolio.entry_prices
-        })
+        }, BOT_NAME)
 
         print()
 

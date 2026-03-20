@@ -13,6 +13,9 @@ def generate_signals(prices, data_cache, adaptive_state):
 
         data = data_cache.get(ticker)
 
+        if data is None:
+            continue
+
         # ----- TREND FILTER -----
 
         if len(data) >= 200:
@@ -27,8 +30,6 @@ def generate_signals(prices, data_cache, adaptive_state):
         else:
             downtrend = False
 
-        if data is None:
-            continue
 
         regimes = regime_history(data)
 
@@ -50,6 +51,7 @@ def generate_signals(prices, data_cache, adaptive_state):
         else:
             signals["AD"] = adaptive_strategy(data, adaptive_state)
 
+
         votes = list(signals.values())
 
         buy_votes = votes.count("BUY")
@@ -57,16 +59,15 @@ def generate_signals(prices, data_cache, adaptive_state):
 
         vote_strength = buy_votes + sell_votes
 
+
         if buy_votes >= 2 and not downtrend:
             signal_list.append(("COUNCIL", "BUY", ticker, vote_strength))
 
         elif sell_votes >= 2:
             signal_list.append(("COUNCIL", "SELL", ticker, vote_strength))
 
+
     # Rank strongest signals first
     signal_list = sorted(signal_list, key=lambda x: x[3], reverse=True)
-
-    if not signal_list:
-        return signal_list
 
     return signal_list
