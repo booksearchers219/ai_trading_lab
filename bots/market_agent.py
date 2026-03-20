@@ -7,7 +7,6 @@ from engines.walkforward_engine import walkforward_test
 import argparse
 import numpy as np
 import matplotlib
-
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
@@ -39,12 +38,15 @@ from trade_logger import log_trade
 from scanners.momentum_scanner import find_momentum_leaders, print_momentum_leaders
 from core.regime_brain import decide_strategy_mode
 
+
 BOT_NAME = os.getenv("BOT_NAME", "default_bot")
 STRATEGY = "adaptive"
 
 MAX_DAILY_LOSS = -0.05  # stop trading at -5% daily loss
 
 portfolio_tickers = []
+
+
 
 
 def print_opportunity_heatmap(signals):
@@ -71,6 +73,7 @@ def print_opportunity_heatmap(signals):
 
 
 def rank_opportunities(signals):
+
     ranked = []
 
     for strat, action, ticker, votes in signals:
@@ -84,7 +87,7 @@ def rank_opportunities(signals):
 
     ranked.sort(key=lambda x: x[1], reverse=True)
 
-    return ranked[:10]
+    return ranked
 
 
 def print_signal_radar(signals):
@@ -841,12 +844,25 @@ if __name__ == "__main__":
         cycle = 0
 
         while True:
+
+            cycle += 1
+
             print(f"\nRESEARCH CYCLE {cycle}")
             print("---------------------")
 
-            run_research_pipeline()
+            try:
+
+                run_research_pipeline()
+
+                print("\nCycle complete.")
+
+            except Exception as e:
+
+                print("\n⚠ RESEARCH CYCLE ERROR")
+                print(e)
 
             print("\nSleeping 10 minutes...\n")
+
             time.sleep(600)
 
 
@@ -1133,7 +1149,10 @@ if __name__ == "__main__":
     # Build portfolio from signals
     portfolio_tickers = []
 
-    top_trades = rank_opportunities(signals)[:5]
+    if args.crypto:
+        top_trades = rank_opportunities(signals)  # allow all
+    else:
+        top_trades = rank_opportunities(signals)[:5]
 
     print("\nAI PORTFOLIO MANAGER")
     print("--------------------")
@@ -1359,7 +1378,10 @@ if __name__ == "__main__":
         lambda d: voting_strategy(d, vote_state)
     )
 
-    best_strategies = load_best_strategies(10)
+    if args.crypto:
+        best_strategies = load_best_strategies(50)
+    else:
+        best_strategies = load_best_strategies(10)
 
     trend_strategies = best_strategies[:5]
     sideways_strategies = best_strategies[5:10]

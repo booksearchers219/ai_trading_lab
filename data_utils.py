@@ -7,18 +7,45 @@ def get_sp500_tickers():
 
     url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 
-    tables = pd.read_html(
-        url,
-        storage_options={"User-Agent": "Mozilla/5.0"}
-    )
+    try:
 
-    df = tables[0]
+        tables = pd.read_html(url)
 
-    tickers = df["Symbol"].tolist()
+        df = tables[0]
 
-    tickers = [t.replace(".", "-") for t in tickers]
+        tickers = df["Symbol"].tolist()
 
-    return tickers
+        # save cache
+        with open("sp500_cache.txt", "w") as f:
+            for t in tickers:
+                f.write(t + "\n")
+
+        return tickers
+
+    except Exception as e:
+
+        print("⚠ Failed to download S&P500 list")
+        print("Reason:", e)
+
+        # fallback to cached list
+        try:
+            with open("sp500_cache.txt") as f:
+                tickers = [x.strip() for x in f.readlines()]
+
+            print("Using cached S&P500 list")
+
+            return tickers
+
+        except Exception:
+
+            print("No cache found — using fallback universe")
+
+            return [
+                "AAPL","MSFT","NVDA","GOOGL","AMZN",
+                "META","TSLA","AMD","AVGO","NFLX",
+                "ADBE","CRM","ORCL","INTC","QCOM",
+                "MU","SHOP","SMCI","ARM"
+            ]
 
 
 def get_recent_data(ticker, months):
