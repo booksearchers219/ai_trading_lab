@@ -22,7 +22,7 @@ from equity_logger import log_equity
 from trade_logger import log_trade
 
 MAX_POSITIONS = 25
-MAX_RISK_PER_TRADE = 0.04
+MAX_RISK_PER_TRADE = 0.06
 MAX_TICKER_ALLOCATION = 0.10
 MAX_PORTFOLIO_EXPOSURE = 0.85
 STOP_LOSS_PCT = 0.10
@@ -603,9 +603,18 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
                 combined_signal = "BUY"
                 vote_strength = buy_votes
 
+            elif sell_votes >= 1:
+                combined_signal = "SELL"
+                vote_strength = sell_votes
+
             recent_return = (data["Close"].iloc[-1] - data["Close"].iloc[-5]) / data["Close"].iloc[-5]
 
             if combined_signal == "BUY" and recent_return < -0.05:
+                combined_signal = "HOLD"
+
+            ma50 = data["Close"].rolling(50).mean().iloc[-1]
+
+            if combined_signal == "BUY" and data["Close"].iloc[-1] < ma50:
                 combined_signal = "HOLD"
 
             elif sell_votes >= 2:
@@ -1056,7 +1065,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             if data is None:
                 continue
 
-            returns = data["Close"].pct_change().dropna()
+            returns = data["Close"].pct_change().replace([float("inf"), -float("inf")], 0).dropna()
             volatility = returns.std()
             volatility = max(0.005, min(volatility, 0.10))
 
@@ -1094,7 +1103,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
                     and (
                     open_positions < max_positions
                     or (
-                            open_positions >= MAX_POSITIONS
+                            open_positions >= max_positions
                             and position_scores
                             and vote_strength > min(position_scores.values())
                     )
@@ -1190,6 +1199,9 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
                 high_prices.pop(ticker, None)
 
+            if "starting_equity" not in locals():
+                starting_equity = portfolio.total_value(prices)
+
         if not prices:
             print("\nNo market data this cycle.")
             time.sleep(300)
@@ -1197,8 +1209,8 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
         portfolio_value = portfolio.total_value(prices)
 
-        today_pl = portfolio_value - 30000
-        today_pct = (today_pl / 30000) * 100
+        today_pl = portfolio_value - starting_equity
+        today_pct = (today_pl / starting_equity) * 100
 
         pl_str = f"+${today_pl:,.2f}" if today_pl >= 0 else f"-${abs(today_pl):,.2f}"
         pct_str = f"+{today_pct:.2f}%" if today_pct >= 0 else f"{today_pct:.2f}%"
@@ -1340,8 +1352,8 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         perf_row = ""
 
         for strat, equity in strategy_equity.items():
-            pnl = equity - 30000
-            pnl_pct = (pnl / 30000) * 100
+            pnl = equity - starting_equity
+            pnl_pct = (pnl / starting_equity) * 100
 
             pnl_str = f"+{pnl_pct:.2f}%" if pnl_pct >= 0 else f"{pnl_pct:.2f}%"
 
