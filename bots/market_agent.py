@@ -415,6 +415,30 @@ def print_market_sentiment(symbol_data):
         print("BEARISH ❄️")
 
 
+def run_research_pipeline():
+
+    print("\nRunning research pipeline")
+
+    scan_args = argparse.Namespace(
+        scan="sp500",
+        limit=50,
+        window=6,
+        crypto=args.crypto,
+        parallel=False,
+        report=False,
+        ticker="SPY",
+        top=20
+    )
+
+    run_scan_and_report(scan_args)
+
+    evo_args = argparse.Namespace(ticker="SPY", window=12)
+    run_evolution_search(evo_args)
+
+    lab_args = argparse.Namespace(ticker="SPY", window=12, top=10, report=False)
+    run_strategy_lab(lab_args)
+
+
 def print_market_pulse(data, symbol_data, leaders):
     if args.crypto:
         print("\nAI CRYPTO TRADING LAB")
@@ -538,6 +562,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AI Trading Lab")
 
+    parser.add_argument("--research", action="store_true", help="Run full strategy research pipeline")
+
     parser.add_argument("--bot", default="default_bot")
 
     parser.add_argument("--strategy_name", default="adaptive")
@@ -615,6 +641,13 @@ if __name__ == "__main__":
         action="store_true",
         help="Run continuous AI trading loop"
     )
+
+    parser.add_argument(
+        "--research-daemon",
+        action="store_true",
+        help="Run continuous strategy discovery loop"
+    )
+
     parser.add_argument(
         "--crypto",
         action="store_true",
@@ -622,6 +655,18 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    # --------------------------------------------------
+    # Research mode
+    # --------------------------------------------------
+    if args.research:
+        print("\n==============================")
+        print("AUTONOMOUS RESEARCH MODE")
+        print("==============================")
+
+        run_research_pipeline()
+
+        sys.exit()
 
     print("\n==============================")
     print("AI TRADING LAB STARTING")
@@ -781,6 +826,30 @@ if __name__ == "__main__":
     # --------------------------------------------------
     # Daemon mode
     # --------------------------------------------------
+
+    # --------------------------------------------------
+    # Research Daemon Mode
+    # --------------------------------------------------
+    if args.research_daemon:
+
+        import time
+
+        print("\n==============================")
+        print("AI RESEARCH DAEMON ACTIVE")
+        print("==============================")
+
+        cycle = 0
+
+        while True:
+            print(f"\nRESEARCH CYCLE {cycle}")
+            print("---------------------")
+
+            run_research_pipeline()
+
+            print("\nSleeping 10 minutes...\n")
+            time.sleep(600)
+
+
     if args.daemon:
 
         import time
@@ -1182,7 +1251,61 @@ if __name__ == "__main__":
 
     league = update_scores(league)
 
+    # --------------------------------------------------
+    # STRATEGY DARWINISM ENGINE
+    # --------------------------------------------------
+
+    SURVIVAL_THRESHOLD = 0.05
+    MIN_POPULATION = 30
+    MUTATION_COUNT = 20
+
+    print("\nSTRATEGY DARWINISM")
+    print("------------------")
+
+    original_count = len(league)
+
+    # Kill weak strategies
+    league = [s for s in league if s["score"] > SURVIVAL_THRESHOLD]
+
+    killed = original_count - len(league)
+
+    print(f"Strategies killed: {killed}")
+    print(f"Strategies surviving: {len(league)}")
+
+    # Repopulate if population too small
+    if len(league) < MIN_POPULATION:
+
+        print("\nRepopulating strategy pool...")
+
+        for _ in range(MUTATION_COUNT):
+            gene = random_gene()
+
+            strat, p1, p2 = gene
+
+            league.append({
+                "strategy": strat,
+                "short": p1,
+                "long": p2,
+                "sharpe": 0,
+                "wins": 0,
+                "losses": 0,
+                "score": 0
+            })
+
+        print(f"New strategies spawned: {MUTATION_COUNT}")
+
+    print("Total strategies now:", len(league))
+
     save_league(league)
+
+    # Strategy Darwinism
+   # SURVIVAL_THRESHOLD = 0.1
+
+    # league = [s for s in league if s["score"] > SURVIVAL_THRESHOLD]
+
+    print("\nSTRATEGY EVOLUTION")
+    print("------------------")
+    print("Strategies surviving:", len(league))
 
     print("\nSTRATEGY LEAGUE TOP 10")
     print("----------------------")

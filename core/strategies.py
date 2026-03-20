@@ -49,11 +49,16 @@ def mean_reversion_strategy(data, threshold=-0.01):
 
     closes = data["Close"]
 
-    if len(closes) < 24:
+    if len(closes) < 60:
         return "HOLD"
 
     # lookback ~5 hours on 5m candles
-    change = (closes.iloc[-1] - closes.iloc[-60]) / closes.iloc[-24]
+    base = closes.iloc[-24]
+
+    if base == 0 or np.isnan(base):
+        return "HOLD"
+
+    change = (closes.iloc[-1] - closes.iloc[-60]) / base
 
     if change < threshold:
         return "BUY"
@@ -169,6 +174,9 @@ def volatility_breakout_strategy(data):
     today_range = highs.iloc[-1] - lows.iloc[-1]
 
     avg_range_series = (highs - lows).rolling(window=10).mean()
+
+    if len(avg_range_series) < 2:
+        return "HOLD"
 
     avg_range = avg_range_series.iloc[-2]
 

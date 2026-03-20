@@ -3,6 +3,11 @@ import matplotlib.pyplot as plt
 def save_heatmap(heatmap_array, heatmap_labels, args, timestamp, report_dir):
 
     plt.figure(figsize=(8,10))
+
+    if len(heatmap_array) == 0:
+        print("No heatmap data — skipping chart")
+        return
+
     plt.imshow(heatmap_array, cmap="coolwarm", aspect="auto")
 
     plt.yticks(range(len(heatmap_labels)), heatmap_labels)

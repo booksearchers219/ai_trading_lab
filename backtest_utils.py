@@ -41,7 +41,10 @@ def run_backtest(data, strategy_function):
         if strategy_function.__name__ == "adaptive_strategy":
             decision = strategy_function(recent_data, state)
         else:
-            decision = strategy_function(recent_data)
+            try:
+                decision = strategy_function(recent_data)
+            except Exception:
+                decision = "HOLD"
 
             # allow entry if strategy already bullish
             if shares == 0 and decision == "BUY" and entry_price is None:
