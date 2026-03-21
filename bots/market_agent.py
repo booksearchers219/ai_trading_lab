@@ -1,12 +1,11 @@
 import sys
 import os
-import logging
-from datetime import datetime
+
 from engines.walkforward_engine import walkforward_test
 import argparse
-import numpy as np
+
 from analysis.performance_report import print_strategy_performance
-import yfinance as yf
+
 from analysis.market_analysis import (
     print_market_regime,
     print_market_sentiment,
@@ -25,17 +24,16 @@ from core.volatility_regime import detect_volatility_regime
 from bots.live_trading import run_live_simulation
 from core.strategy_league import load_league, update_scores, save_league
 from core.strategies import *
-from core.portfolio_state import save_state, load_state
+
 from core.signal_engine import generate_signals
-from core.risk_manager import calculate_position_size
+
 from core.strategy_stats import record_trade, print_strategy_stats
 from engines.autonomous_engine import run_autonomous_cycle
 from utils.reporting import max_drawdown, rolling_sharpe
 from utils.strategy_loader import load_best_strategies
 from visualization.backtest_report import generate_backtest_report
 import time
-from dashboard.ai_dashboard import print_ai_dashboard
-from dashboard.dashboard import print_market, print_signals
+
 from trend_panel import print_trend_panel, print_market_breadth
 from trade_logger import log_trade
 from scanners.momentum_scanner import find_momentum_leaders, print_momentum_leaders
@@ -45,7 +43,7 @@ from analysis.signal_analysis import (
     rank_opportunities,
     print_signal_radar,
     print_top_opportunities,
-    print_risk_monitor
+
 )
 from evolution.genome_engine import evolve_population
 from evolution.dna_engine import evolve_population as evolve_dna, random_gene
@@ -569,7 +567,7 @@ if __name__ == "__main__":
 
             time.sleep(300)
 
-        sys.exit()
+
     if args.live:
 
         if args.crypto:
@@ -703,7 +701,7 @@ if __name__ == "__main__":
         print(f"\nRunning strategy lab for {sym} ({pct * 100:+.2f}%)")
 
         try:
-            result = run_strategy_lab(
+            run_strategy_lab(
                 argparse.Namespace(
                     ticker=sym,
                     window=6,

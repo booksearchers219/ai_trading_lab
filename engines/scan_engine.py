@@ -9,7 +9,6 @@ from workers.ticker_worker import process_ticker
 from utils.reporting import cleanup_reports
 from charts.charts import (
     save_heatmap,
-    save_portfolio_chart,
     save_strategy_dominance,
     save_sharpe_leaderboard,
     save_regime_distribution,
