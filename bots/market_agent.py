@@ -563,9 +563,9 @@ if __name__ == "__main__":
                 print("\n⚠ DAEMON ERROR")
                 print(e)
 
-            print("\nSleeping 5 minutes...\n")
+            print("\nSleeping 15 minutes...\n")
 
-            time.sleep(300)
+            time.sleep(900)
 
 
     if args.live:
