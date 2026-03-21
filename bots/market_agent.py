@@ -488,8 +488,6 @@ if __name__ == "__main__":
     # --------------------------------------------------
     if args.research_daemon:
 
-
-
         print("\n==============================")
         print("AI RESEARCH DAEMON ACTIVE")
         print("==============================")
@@ -504,14 +502,10 @@ if __name__ == "__main__":
             print("---------------------")
 
             try:
-
                 run_research_pipeline()
-
-                print("\nCycle complete.")
-                print()
+                print("\nCycle complete.\n")
 
             except Exception as e:
-
                 print("\n⚠ RESEARCH CYCLE ERROR")
                 print(e)
 
@@ -519,10 +513,10 @@ if __name__ == "__main__":
             next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
             print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
-            print("\nSleeping 15 minutes...\n")
+            print()
+            print("Sleeping 15 minutes...\n")
 
             time.sleep(sleep_seconds)
-
 
     if args.daemon:
 
@@ -557,7 +551,6 @@ if __name__ == "__main__":
                 else:
 
                     universe = load_watchlist()
-
                     run_live_simulation(universe, [], BOT_NAME)
 
             except Exception as e:
@@ -565,9 +558,13 @@ if __name__ == "__main__":
                 print("\n⚠ DAEMON ERROR")
                 print(e)
 
-            print("\nSleeping 15 minutes...\n")
+            sleep_seconds = 900
+            next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
-            time.sleep(900)
+            print(f"\nNext cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+            print("Sleeping 15 minutes...\n")
+
+            time.sleep(sleep_seconds)
 
 
     if args.live:
