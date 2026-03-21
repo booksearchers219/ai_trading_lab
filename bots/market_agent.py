@@ -513,6 +513,7 @@ if __name__ == "__main__":
             next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
             print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+
             print()
             print("Sleeping 15 minutes...\n")
 
@@ -562,6 +563,7 @@ if __name__ == "__main__":
             next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
             print(f"\nNext cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+            print()
             print("Sleeping 15 minutes...\n")
 
             time.sleep(sleep_seconds)

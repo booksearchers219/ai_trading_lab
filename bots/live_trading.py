@@ -1416,14 +1416,8 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         print()
 
         print("\nCycle complete.\n")
+        print()
 
-        sleep_seconds = 900
-        next_run = datetime.now() + timedelta(seconds=sleep_seconds)
-
-        print(f"Next cycle at {next_run.strftime('%H:%M:%S')}")
-        print("\nSleeping 15 minutes...\n")
-
-        time.sleep(sleep_seconds)
 
 
 if __name__ == "__main__":

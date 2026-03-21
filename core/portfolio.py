@@ -55,61 +55,24 @@ class Portfolio:
 
     def total_value(self, prices):
 
-        # ---------------------------------------------------------
-        # Calculate total portfolio value
-        #
-        # This includes:
-        #   • remaining cash
-        #   • value of all open positions
-        #
-        # While looping through positions we also check
-        # for profit-taking opportunities.
-        # ---------------------------------------------------------
-
         value = self.cash
 
         for ticker, shares in list(self.positions.items()):
 
-            price = prices.get(ticker, 0)
+            price = prices.get(ticker)
 
-            # -----------------------------------------------------
-            # Profit-Taking Logic
-            #
-            # If a position has gained significantly,
-            # automatically lock profits.
-            #
-            # +10% → sell half
-            # +20% → sell full position
-            # -----------------------------------------------------
+            # fallback to entry price if market price missing
+            if price is None:
+                price = self.entry_prices.get(ticker)
+
+            if price is None:
+                continue
 
             entry = self.entry_prices.get(ticker)
 
             if entry:
 
                 profit_pct = (price - entry) / entry
-
-                # -----------------------------------------------------
-                # Profit locking rules
-                #
-                # Order matters:
-                # We check the largest gain first.
-                # -----------------------------------------------------
-
-                # take full profit at +20%
-                if profit_pct > 0.20:
-
-                    print(f"Taking full profit on {ticker}")
-
-                    self.sell(ticker, price, shares)
-
-                    continue
-
-                # -----------------------------------------------------
-                # Profit locking rules
-                #
-                # Order matters:
-                # We check the largest gain first.
-                # -----------------------------------------------------
 
                 # take full profit at +20%
                 if profit_pct > 0.20:
@@ -130,15 +93,6 @@ class Portfolio:
                     self.sell(ticker, price, sell_size)
 
                     shares = self.positions.get(ticker, 0)
-
-                # take full profit
-                elif profit_pct > 0.20:
-
-                    print(f"Taking full profit on {ticker}")
-
-                    self.sell(ticker, price, shares)
-
-                    continue
 
             value += shares * price
 
