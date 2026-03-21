@@ -29,7 +29,7 @@ STOP_LOSS_PCT = 0.10
 TRAILING_STOP_PCT = 0.12
 SIGNAL_CONFIRM_CYCLES = 1
 MIN_VOLATILITY = 0.01
-MAX_NEW_TRADES_PER_CYCLE = 20
+MAX_NEW_TRADES_PER_CYCLE = 5
 
 SCAN_UNIVERSE = [
     "SPY",
@@ -1341,6 +1341,8 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             print("Rotation Signal  : YES")
         else:
             print("Rotation Signal  : NO")
+
+        portfolio_value = portfolio.total_value(prices)
 
         log_equity({
             "MA": portfolio_value,
