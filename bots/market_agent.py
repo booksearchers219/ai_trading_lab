@@ -508,18 +508,20 @@ if __name__ == "__main__":
                 run_research_pipeline()
 
                 print("\nCycle complete.")
+                print()
 
             except Exception as e:
 
                 print("\n⚠ RESEARCH CYCLE ERROR")
                 print(e)
 
-            print(f"Next cycle at {datetime.now()}")
+            sleep_seconds = 900
+            next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
+            print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+            print("\nSleeping 15 minutes...\n")
 
-            print("\nSleeping 10 minutes...\n")
-
-            time.sleep(600)
+            time.sleep(sleep_seconds)
 
 
     if args.daemon:

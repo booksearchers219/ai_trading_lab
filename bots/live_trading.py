@@ -172,9 +172,6 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         # the portfolio state was reset or the bot restarted.
         # ---------------------------------------------------------
 
-        if "starting_equity" not in locals():
-            starting_equity = portfolio.total_value({})
-
         print("\n==============================")
         print("STARTING NEW TRADING CYCLE")
         print("==============================")
@@ -310,6 +307,9 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
                     pass
 
         current_time = time.time()
+
+        if "starting_equity" not in locals():
+            starting_equity = portfolio.total_value(prices)
 
         if current_time - data_refresh_time > DATA_REFRESH_SECONDS:
 
@@ -1229,8 +1229,6 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
                 high_prices.pop(ticker, None)
 
-
-
         if not prices:
             print("\nNo market data this cycle.")
             time.sleep(300)
@@ -1417,9 +1415,16 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
         print()
 
-        print("\nCycle complete.")
+        print("\nCycle complete.\n")
 
-        print()
+        sleep_seconds = 900
+        next_run = datetime.now() + timedelta(seconds=sleep_seconds)
+
+        print(f"Next cycle at {next_run.strftime('%H:%M:%S')}")
+        print("\nSleeping 15 minutes...\n")
+
+        time.sleep(sleep_seconds)
+
 
 if __name__ == "__main__":
     bot = os.getenv("BOT_NAME", "default_bot")
