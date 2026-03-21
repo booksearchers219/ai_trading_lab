@@ -226,3 +226,26 @@ def profit_factor(profits):
         return 0
 
     return gross_profit / gross_loss
+
+
+def regime_history(data, short=20, long=50):
+
+    closes = data["Close"]
+
+    short_ma = closes.rolling(short).mean()
+    long_ma = closes.rolling(long).mean()
+
+    regimes = []
+
+    for i in range(len(closes)):
+
+        if i < long:
+            regimes.append("UNKNOWN")
+            continue
+
+        if short_ma.iloc[i] > long_ma.iloc[i]:
+            regimes.append("TRENDING")
+        else:
+            regimes.append("SIDEWAYS")
+
+    return regimes

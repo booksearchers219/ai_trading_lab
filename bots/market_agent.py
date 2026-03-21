@@ -2,16 +2,19 @@ import sys
 import os
 import logging
 from datetime import datetime
-import os
 from engines.walkforward_engine import walkforward_test
 import argparse
 import numpy as np
-import matplotlib
-matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
+from analysis.performance_report import print_strategy_performance
 import yfinance as yf
-from engines.genome_engine import evolve_population
+from analysis.market_analysis import (
+    print_market_regime,
+    print_market_sentiment,
+    print_watchlist_momentum,
+    print_strategy_confidence,
+    print_strategy_agreement,
+    compute_sector_strength
+)
 from backtest_utils import *
 from data_utils import *
 from core.portfolio_allocator import allocate_by_sharpe
@@ -29,14 +32,27 @@ from core.strategy_stats import record_trade, print_strategy_stats
 from engines.autonomous_engine import run_autonomous_cycle
 from utils.reporting import max_drawdown, rolling_sharpe
 from utils.strategy_loader import load_best_strategies
-from engines.dna_engine import evolve_population as evolve_dna, random_gene
-from visualization import *
+from visualization.backtest_report import generate_backtest_report
+import time
 from dashboard.ai_dashboard import print_ai_dashboard
 from dashboard.dashboard import print_market, print_signals
 from trend_panel import print_trend_panel, print_market_breadth
 from trade_logger import log_trade
 from scanners.momentum_scanner import find_momentum_leaders, print_momentum_leaders
 from core.regime_brain import decide_strategy_mode
+from analysis.signal_analysis import (
+    print_opportunity_heatmap,
+    rank_opportunities,
+    print_signal_radar,
+    print_top_opportunities,
+    print_risk_monitor
+)
+from evolution.genome_engine import evolve_population
+from evolution.dna_engine import evolve_population as evolve_dna, random_gene
+from evolution.darwin_engine import run_strategy_darwinism
+
+
+
 
 
 BOT_NAME = os.getenv("BOT_NAME", "default_bot")
@@ -44,171 +60,12 @@ STRATEGY = "adaptive"
 
 MAX_DAILY_LOSS = -0.05  # stop trading at -5% daily loss
 
-portfolio_tickers = []
 
-
-
-
-def print_opportunity_heatmap(signals):
-    print("\nOPPORTUNITY HEATMAP")
-    print("-------------------")
-
-    if not signals:
-        print("None")
-        return
-
-    counts = {}
-
-    for s in signals:
-        ticker = s[2]  # FIXED (ticker is index 2)
-
-        counts[ticker] = counts.get(ticker, 0) + 1
-
-    ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
-
-    for ticker, score in ranked[:10]:
-        bar = "█" * score
-
-        print(f"{ticker:<6} {bar:<10} {score}")
-
-
-def rank_opportunities(signals):
-
-    ranked = []
-
-    for strat, action, ticker, votes in signals:
-
-        for strat, action, ticker, votes in signals:
-
-            score = votes * 2
-
-            if action == "BUY":
-                ranked.append((ticker, score))
-
-            elif action == "SELL":
-                ranked.append((ticker, -score))
-
-        score = votes * 2
-
-        ranked.append((ticker, score))
-
-    ranked.sort(key=lambda x: x[1], reverse=True)
-
-    return ranked
-
-
-def print_signal_radar(signals):
-    print("\nSIGNAL RADAR")
-    print("------------")
-
-    if not signals:
-        print("None")
-        return
-
-    counts = {}
-
-    for s in signals:
-        ticker = s[2]  # FIXED
-        action = s[1]
-
-        key = (ticker, action)
-
-        counts[key] = counts.get(key, 0) + 1
-
-    ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
-
-    for (ticker, action), score in ranked[:10]:
-        print(f"{ticker:<6} {action:<4} strength {score}")
-
-
-def print_top_opportunities(signals):
-    global portfolio_tickers
-
-    top_trades = rank_opportunities(signals)[:5]
-
-    portfolio_tickers = [t[0] for t in top_trades]
-
-    print("\nAI PORTFOLIO MANAGER")
-    print("--------------------")
-
-    for t, score in top_trades:
-        print(f"{t:<6} score:{score}")
-
-        capital = 10000
-        weight = capital / len(portfolio_tickers)
-
-        portfolio_weights = {t: weight for t in portfolio_tickers}
-
-        print("\nPORTFOLIO ALLOCATION")
-        print("--------------------")
-
-        for t, w in portfolio_weights.items():
-            print(f"{t:<6} ${w:.0f}")
-
-    ranked = rank_opportunities(signals)
-
-    print("\nTOP OPPORTUNITIES")
-    print("-----------------")
-
-    if not ranked:
-        print("None")
-        return
-
-    for ticker, score in ranked:
-        print(f"{ticker:<6} score:{score}")
-
-
-def print_risk_monitor(portfolio, prices):
-    value = portfolio.total_value(prices)
-
-    positions_value = value - portfolio.cash
-
-    exposure = (positions_value / value) * 100 if value > 0 else 0
-
-    largest = None
-    largest_pct = 0
-
-    for ticker, shares in portfolio.positions.items():
-
-        price = prices.get(ticker, 0)
-
-        pos_value = shares * price
-
-        pct = (pos_value / value) * 100 if value > 0 else 0
-
-        if pct > largest_pct:
-            largest_pct = pct
-            largest = ticker
-
-    print("\nRISK MONITOR")
-    print("------------")
-
-    print(f"Exposure: {exposure:.1f}%")
-
-    if largest:
-        print(f"Largest Position: {largest} {largest_pct:.1f}%")
-
-    if exposure > 80:
-        print("⚠ WARNING: Portfolio exposure high")
-
-    if largest_pct > 25:
-        print("⚠ WARNING: Position concentration risk")
-
-
-def load_watchlist(filename="watchlist.txt"):
-    tickers = []
-
-    try:
-        with open(filename, "r") as f:
-            for line in f:
-                t = line.strip().upper()
-                if t:
-                    tickers.append(t)
-    except FileNotFoundError:
-        print("watchlist.txt not found")
-        return []
-
-    return tickers
+DISCOVERY_UNIVERSE = [
+    "NVDA", "AMD", "AVGO", "TSLA", "META", "AAPL", "MSFT",
+    "GOOGL", "AMZN", "NFLX", "SMCI", "ARM", "INTC",
+    "MU", "QCOM", "ADBE", "CRM", "ORCL", "NOW", "SHOP"
+]
 
 
 TOP10 = [
@@ -224,152 +81,8 @@ TOP10 = [
     "NFLX"
 ]
 
-DISCOVERY_UNIVERSE = [
-    "NVDA", "AMD", "AVGO", "TSLA", "META", "AAPL", "MSFT",
-    "GOOGL", "AMZN", "NFLX", "SMCI", "ARM", "INTC",
-    "MU", "QCOM", "ADBE", "CRM", "ORCL", "NOW", "SHOP"
-]
 
 
-def load_crypto_watchlist(filename="crypto_watchlist.txt"):
-    tickers = []
-
-    try:
-        with open(filename, "r") as f:
-            for line in f:
-                t = line.strip().upper()
-                if t:
-                    tickers.append(t)
-
-    except FileNotFoundError:
-        print("crypto_watchlist.txt not found")
-        return []
-
-    return tickers
-
-
-def get_live_price(ticker):
-    try:
-        data = yf.Ticker(ticker)
-
-        hist = data.history(period="5d", interval="5m")
-
-        if hist.empty:
-            return None
-
-        price = hist["Close"].iloc[-1]
-
-        if price <= 0:
-            return None
-
-        return float(price)
-
-    except Exception:
-        return None
-
-
-def compute_sector_strength(data):
-    sectors = {
-        "AI": ["NVDA", "AMD"],
-        "TECH": ["AAPL", "MSFT"],
-        "MEDIA": ["META", "GOOGL"]
-    }
-
-    sector_scores = {}
-
-    for sector, symbols in sectors.items():
-
-        changes = []
-
-        for s in symbols:
-            if s in data and len(data[s]) >= 2:
-                close = data[s]["Close"]
-                pct = (close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]
-
-                changes.append(pct)
-
-        if not changes:
-            sector_scores[sector] = ("UNKNOWN", 0)
-            continue
-
-        avg = sum(changes) / len(changes)
-
-        if avg > 0.01:
-            label = "🟢 STRONG"
-        elif avg < -0.01:
-            label = "🔴 WEAK"
-        else:
-            label = "🟡 MIXED"
-
-        sector_scores[sector] = (label, avg)
-
-    return sector_scores
-
-
-def print_market_regime(data):
-    regimes = regime_history(data)
-
-    if not regimes:
-        return
-
-    current = regimes[-1]
-
-    vol_regime = detect_volatility_regime(data)
-
-    print("\nVOLATILITY REGIME")
-    print("-----------------")
-    print(vol_regime)
-
-    print("\nMARKET REGIME")
-    print("-------------")
-
-    if current == "TRENDING":
-        print("TRENDING 📈")
-
-    else:
-        print("SIDEWAYS 🔄")
-
-
-def print_strategy_agreement(symbol_data):
-    buy_votes = 0
-    sell_votes = 0
-    hold_votes = 0
-
-    for symbol, df in symbol_data.items():
-
-        if len(df) < 20:
-            continue
-
-        votes = [
-            analyze_market(df),
-            mean_reversion_strategy(df),
-            adaptive_strategy(df, {})
-        ]
-
-        for v in votes:
-            if v == "BUY":
-                buy_votes += 1
-            elif v == "SELL":
-                sell_votes += 1
-            else:
-                hold_votes += 1
-
-    total = buy_votes + sell_votes + hold_votes
-
-    if total == 0:
-        return
-
-    strongest = max(buy_votes, sell_votes, hold_votes) / total
-
-    print("\nSTRATEGY AGREEMENT")
-    print("------------------")
-
-    if strongest > 0.70:
-        print("HIGH AGREEMENT ⚡")
-    elif strongest > 0.50:
-        print("MODERATE AGREEMENT")
-    else:
-        print("LOW AGREEMENT ⚠️")
 
 
 def compute_strategy_allocation(ma_sharpe, mr_sharpe, ad_sharpe):
@@ -389,64 +102,40 @@ def compute_strategy_allocation(ma_sharpe, mr_sharpe, ad_sharpe):
     return weights
 
 
-def print_market_sentiment(symbol_data):
-    score = 0
+def load_crypto_watchlist(filename="crypto_watchlist.txt"):
 
-    for symbol, df in symbol_data.items():
+    tickers = []
 
-        if len(df) < 2:
-            continue
+    try:
+        with open(filename, "r") as f:
+            for line in f:
+                t = line.strip().upper()
+                if t:
+                    tickers.append(t)
 
-        close = df["Close"]
+    except FileNotFoundError:
+        print("crypto_watchlist.txt not found")
+        return []
 
-        pct = (close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]
+    return tickers
 
-        if pct > 0.01:
-            score += 1
-        elif pct < -0.01:
-            score -= 1
+def load_watchlist(filename="watchlist.txt"):
 
-    print("\nMARKET SENTIMENT")
-    print("----------------")
+    tickers = []
 
-    if score >= 3:
-        print("BULLISH 🔥🔥🔥")
+    try:
+        with open(filename, "r") as f:
+            for line in f:
+                t = line.strip().upper()
+                if t:
+                    tickers.append(t)
 
-    elif score >= 1:
-        print("BULLISH 🔥")
+    except FileNotFoundError:
+        print("watchlist.txt not found")
+        return []
 
-    elif score == 0:
-        print("NEUTRAL ⚖️")
+    return tickers
 
-    elif score <= -3:
-        print("BEARISH ❄️❄️❄️")
-
-    else:
-        print("BEARISH ❄️")
-
-
-def run_research_pipeline():
-
-    print("\nRunning research pipeline")
-
-    scan_args = argparse.Namespace(
-        scan="sp500",
-        limit=50,
-        window=6,
-        crypto=args.crypto,
-        parallel=False,
-        report=False,
-        ticker="SPY",
-        top=20
-    )
-
-    run_scan_and_report(scan_args)
-
-    evo_args = argparse.Namespace(ticker="SPY", window=12)
-    run_evolution_search(evo_args)
-
-    lab_args = argparse.Namespace(ticker="SPY", window=12, top=10, report=False)
-    run_strategy_lab(lab_args)
 
 
 def print_market_pulse(data, symbol_data, leaders):
@@ -503,69 +192,28 @@ def print_market_pulse(data, symbol_data, leaders):
     print(f"SENTIMENT     {sentiment}")
     print(f"TOP STOCK     {top_stock_label}")
 
+def run_research_pipeline():
 
-def print_strategy_confidence(symbol_data):
-    buy_votes = 0
-    sell_votes = 0
-    hold_votes = 0
+    print("\nRunning research pipeline")
 
-    for symbol, df in symbol_data.items():
+    scan_args = argparse.Namespace(
+        scan="sp500",
+        limit=50,
+        window=6,
+        crypto=False,
+        parallel=False,
+        report=False,
+        ticker="SPY",
+        top=20
+    )
 
-        if len(df) < 20:
-            continue
+    run_scan_and_report(scan_args)
 
-        vote_ma = analyze_market(df)
-        vote_mr = mean_reversion_strategy(df)
-        vote_ad = adaptive_strategy(df, {})
+    evo_args = argparse.Namespace(ticker="SPY", window=12)
+    run_evolution_search(evo_args)
 
-        votes = [vote_ma, vote_mr, vote_ad]
-
-        for v in votes:
-            if v == "BUY":
-                buy_votes += 1
-            elif v == "SELL":
-                sell_votes += 1
-            else:
-                hold_votes += 1
-
-    total = buy_votes + sell_votes + hold_votes
-
-    if total == 0:
-        return
-
-    buy_pct = buy_votes / total
-    sell_pct = sell_votes / total
-
-    print("\nSTRATEGY CONSENSUS")
-    print("------------------")
-
-    bar = int(buy_pct * 10)
-
-    print(f"BUY confidence  {'█' * bar}{'░' * (10 - bar)} {buy_pct * 100:.0f}%")
-    print(f"SELL pressure   {sell_pct * 100:.0f}%")
-
-
-def print_watchlist_momentum(data):
-    changes = []
-
-    for symbol, df in data.items():
-
-        if len(df) < 2:
-            continue
-
-        close = df["Close"]
-
-        pct = (close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]
-
-        changes.append((symbol, pct))
-
-    changes.sort(key=lambda x: x[1], reverse=True)
-
-    print("\nMOMENTUM LEADERS")
-    print("----------------")
-
-    for sym, pct in changes:
-        print(f"{sym:<6} {pct * 100:+.2f}%")
+    lab_args = argparse.Namespace(ticker="SPY", window=12, top=10, report=False)
+    run_strategy_lab(lab_args)
 
 
 if __name__ == "__main__":
@@ -842,7 +490,7 @@ if __name__ == "__main__":
     # --------------------------------------------------
     if args.research_daemon:
 
-        import time
+
 
         print("\n==============================")
         print("AI RESEARCH DAEMON ACTIVE")
@@ -867,6 +515,9 @@ if __name__ == "__main__":
 
                 print("\n⚠ RESEARCH CYCLE ERROR")
                 print(e)
+
+            print(f"Next cycle at {datetime.now()}")
+
 
             print("\nSleeping 10 minutes...\n")
 
@@ -1164,7 +815,15 @@ if __name__ == "__main__":
     print("\nAI PORTFOLIO MANAGER")
     print("--------------------")
 
+    seen = set()
+
     for t, score in top_trades:
+
+        if t in seen:
+            continue
+
+        seen.add(t)
+
         print(f"{t:<6} score:{score}")
         portfolio_tickers.append(t)
 
@@ -1277,52 +936,10 @@ if __name__ == "__main__":
 
     league = update_scores(league)
 
-    # --------------------------------------------------
-    # STRATEGY DARWINISM ENGINE
-    # --------------------------------------------------
-
-    SURVIVAL_THRESHOLD = 0.05
-    MIN_POPULATION = 30
-    MUTATION_COUNT = 20
-
-    print("\nSTRATEGY DARWINISM")
-    print("------------------")
-
-    original_count = len(league)
-
-    # Kill weak strategies
-    league = [s for s in league if s["score"] > SURVIVAL_THRESHOLD]
-
-    killed = original_count - len(league)
-
-    print(f"Strategies killed: {killed}")
-    print(f"Strategies surviving: {len(league)}")
-
-    # Repopulate if population too small
-    if len(league) < MIN_POPULATION:
-
-        print("\nRepopulating strategy pool...")
-
-        for _ in range(MUTATION_COUNT):
-            gene = random_gene()
-
-            strat, p1, p2 = gene
-
-            league.append({
-                "strategy": strat,
-                "short": p1,
-                "long": p2,
-                "sharpe": 0,
-                "wins": 0,
-                "losses": 0,
-                "score": 0
-            })
-
-        print(f"New strategies spawned: {MUTATION_COUNT}")
-
-    print("Total strategies now:", len(league))
-
+    league = run_strategy_darwinism(league)
     save_league(league)
+
+
 
     # Strategy Darwinism
    # SURVIVAL_THRESHOLD = 0.1
@@ -1617,95 +1234,20 @@ if __name__ == "__main__":
     mr_pf = profit_factor(mr_profits)
     ad_pf = profit_factor(ad_profits)
 
-    print("\nSTRATEGY PERFORMANCE")
-    print("--------------------------------------------")
-
-    strategy_table = [
-        ("MA", ma_final, ma_sharpe, ma_max_dd),
-        ("MR", mr_final, mr_sharpe, mr_max_dd),
-        ("Adaptive", adaptive_final, adaptive_sharpe, adaptive_max_dd),
-        ("Vote", vote_final, vote_sharpe, 0),
-        ("Council", council_final, council_sharpe, 0),
-        ("BuyHold", bh_final, bh_sharpe, bh_max_dd),
-    ]
-
-    strategy_table.sort(key=lambda x: x[2], reverse=True)
-
-    print(f"{'Strategy':<12}{'Final':>12}{'Sharpe':>10}{'MaxDD':>10}")
-
-    for name, final, sharpe, dd in strategy_table:
-        print(f"{name:<12}{final:>12.2f}{sharpe:>10.2f}{dd * 100:>9.2f}%")
-
-        # Profit attribution
-        print("\nPROFIT ATTRIBUTION")
-        print("------------------")
-
-        starting_capital = 10000
-
-        attribution = {
-            "MA": ma_final - starting_capital,
-            "MR": mr_final - starting_capital,
-            "Adaptive": adaptive_final - starting_capital,
-            "Vote": vote_final - starting_capital,
-            "Council": council_final - starting_capital,
-            "BuyHold": bh_final - starting_capital,
-        }
-
-        # sort best → worst
-        sorted_attr = sorted(attribution.items(), key=lambda x: x[1], reverse=True)
-
-        for name, profit in sorted_attr:
-
-            if profit > 0:
-                icon = "🟢"
-            elif profit < 0:
-                icon = "🔴"
-            else:
-                icon = "⚪"
-
-            print(f"{name:<10} {icon} ${profit:,.2f}")
-
-    # Record trades for strategy intelligence
-
-    for p in ma_profits:
-        record_trade("MA", p)
-
-        log_trade(
-            ticker,
-            "TRADE",
-            1,
-            p,
-            "MA",
-            0,
-            ma_final
-        )
-
-    for p in ad_profits:
-        record_trade("AD", p)
-
-        log_trade(
-            ticker,
-            "TRADE",
-            1,
-            p,
-            "AD",
-            0,
-            adaptive_final
-        )
-
-    for p in mr_profits:
-        record_trade("MR", p)
-
-        log_trade(
-            ticker,
-            "TRADE",
-            1,
-            p,
-            "MR",
-            0,
-            mr_final
-        )
-    print_strategy_stats()
+    print_strategy_performance(
+        ma_equity, mr_equity, adaptive_equity,
+        ma_final, mr_final, adaptive_final,
+        ma_sharpe, mr_sharpe, adaptive_sharpe,
+        ma_max_dd, mr_max_dd, adaptive_max_dd,
+        ma_profits, mr_profits, ad_profits,
+        vote_final, vote_sharpe,
+        council_final, council_sharpe,
+        bh_final, bh_sharpe, bh_max_dd,
+        ticker,
+        record_trade,
+        log_trade,
+        print_strategy_stats
+    )
 
     print("\nMoving Average")
     print("Trades:", len(ma_profits))
@@ -1754,281 +1296,27 @@ if __name__ == "__main__":
     print("Avg Trade:", round(council_avg, 2))
     print("Sharpe:", round(council_sharpe, 2))
 
-    # Plot
-    fig, (ax0, ax1, ax2, ax3, ax4, ax5) = plt.subplots(6, 1, figsize=(14, 12), sharex=False)
-
-    price_series = data["Close"].iloc[50:].reset_index(drop=True)
-
-    regimes = regime_history(data)[50:]
-
-    ax0.plot(price_series, color="black", linewidth=2, label="Price")
-
-    # Regime shading
-    limit = min(len(price_series) - 1, len(regimes))
-
-    for i in range(limit):
-
-        if regimes[i] == "TRENDING":
-            ax0.axvspan(i, i + 1, color="green", alpha=0.08)
-
-        else:
-            ax0.axvspan(i, i + 1, color="yellow", alpha=0.08)
-
-    # Moving Average trades
-    x, y = safe_points(ma_buys, price_series)
-
-    for i, (bx, by) in enumerate(zip(x, y), start=1):
-
-        if confidence >= 0.75:
-            color = "lime"
-        elif confidence >= 0.5:
-            color = "yellow"
-        else:
-            color = "dodgerblue"
-
-        ax0.scatter(bx, by, marker="^", color=color, s=160)
-
-        ax0.text(
-            bx,
-            by + 2,
-            str(i),
-            fontsize=12,
-            fontweight="bold",
-            ha="center"
-        )
-
-    x, y = safe_points(ma_sells, price_series)
-    ax0.scatter(x, y, marker="v", color="red", s=80)
-
-    for i, (sx, sy) in enumerate(zip(x, y), start=1):
-        ax0.text(sx, sy - 1, f"{i}", fontsize=12, ha="center", va="top", color="black")
-
-    # Mean Reversion trades
-    x, y = safe_points(mr_buys, price_series)
-    ax0.scatter(x, y, marker="^", color="orange", s=80)
-
-    x, y = safe_points(mr_sells, price_series)
-    ax0.scatter(x, y, marker="v", color="darkorange", s=80)
-
-    # Adaptive trades
-    x, y = safe_points(ad_buys, price_series)
-    ax0.scatter(x, y, marker="^", color="purple", s=80)
-
-    x, y = safe_points(ad_sells, price_series)
-    ax0.scatter(x, y, marker="v", color="magenta", s=160)
-
-    ax0.set_title(f"{ticker} Price", fontsize=15, fontweight="bold", loc="left")
-
-    ax0.text(
-        0.01,
-        0.95,
-        "BUY confidence: green=strong  yellow=medium  blue=weak",
-        transform=ax0.transAxes,
-        fontsize=9
+    generate_backtest_report(
+        ticker,
+        BOT_NAME,
+        data,
+        ma_equity,
+        mr_equity,
+        adaptive_equity,
+        bh_equity,
+        vote_equity,
+        council_equity,
+        ma_buys,
+        ma_sells,
+        mr_buys,
+        mr_sells,
+        ad_buys,
+        ad_sells,
+        ma_profits,
+        mr_profits,
+        ad_profits
     )
 
-    ax0.legend(loc="upper left")
-    ax0.grid(True)
-
-    equity = ma_equity
-    regimes = regime_history(data)[50:]
-
-    equity = ma_equity
-    regimes = regime_history(data)[50:]
-
-    limit = min(len(equity) - 1, len(regimes))
-
-    for i in range(limit):
-
-        if regimes[i] == "TRENDING":
-            color = "green"
-        else:
-            color = "gold"
-
-        ax1.plot(
-            [i, i + 1],
-            [equity[i], equity[i + 1]],
-            color=color,
-            linewidth=3
-        )
-
-    ax1.plot(mr_equity, label="Mean Reversion", linewidth=3, linestyle="--")
-    ax1.plot(adaptive_equity, label="Adaptive", linewidth=3)
-    ax1.plot(bh_equity, label="Buy & Hold", linewidth=3)
-    ax1.plot(vote_equity, label="Voting Strategy", linewidth=3)
-    ax1.plot(council_equity, label="Strategy Council", linewidth=3)
-
-    # Moving Average trades
-    x, y = safe_points(ma_buys, ma_equity)
-    ax1.scatter(x, y, marker="^", color="green", s=80)
-
-    for i, (bx, by) in enumerate(zip(x, y), start=1):
-        ax1.text(bx, by + 50, f"{i}", fontsize=12, ha="center")
-
-    x, y = safe_points(ma_sells, ma_equity)
-
-    for i, (sx, sy) in enumerate(zip(x, y), start=1):
-
-        if i - 1 < len(ma_profits) and ma_profits[i - 1] > 0:
-            color = "lime"
-        else:
-            color = "red"
-
-        ax1.scatter(sx, sy, marker="v", color=color, s=160)
-
-        ax1.text(
-            sx,
-            sy - 80,
-            str(i),
-            fontsize=13,
-            fontweight="bold",
-            ha="center"
-        )
-
-    # Mean Reversion trades
-    x, y = safe_points(mr_buys, mr_equity)
-    ax1.scatter(x, y, marker="^", color="orange", s=80)
-
-    x, y = safe_points(mr_sells, mr_equity)
-    ax1.scatter(x, y, marker="v", color="darkorange", s=80)
-
-    # Adaptive trades
-    x, y = safe_points(ad_buys, adaptive_equity)
-    ax1.scatter(x, y, marker="^", color="purple", s=80)
-
-    x, y = safe_points(ad_sells, adaptive_equity)
-    ax1.scatter(x, y, marker="v", color="magenta", s=80)
-
-    ax1.axhline(y=10000, linestyle="--", color="black")
-
-    ma_final_val = ma_equity[-1] if ma_equity else 0
-    mr_final_val = mr_equity[-1] if mr_equity else 0
-    ad_final_val = adaptive_equity[-1] if adaptive_equity else 0
-    vote_final_val = vote_equity[-1] if vote_equity else 0
-    council_final_val = council_equity[-1] if council_equity else 0
-    bh_final_val = bh_equity[-1] if bh_equity else 0
-
-    ax1.set_title(
-        f"{ticker} Equity Curves | "
-        f"MA ${ma_final_val:,.0f}  "
-        f"MR ${mr_final_val:,.0f}  "
-        f"AD ${ad_final_val:,.0f}  "
-        f"Vote ${vote_final_val:,.0f}  "
-        f"Council ${council_final_val:,.0f}  "
-        f"BH ${bh_final_val:,.0f}",
-        fontsize=16,
-        fontweight="bold",
-        loc="left"
-    )
-
-    ax1.legend(loc="upper left")
-    ax1.grid(True)
-    ax1.yaxis.set_major_formatter(mtick.StrMethodFormatter('${x:,.0f}'))
-
-    ax1.set_ylabel("Portfolio Value ($)")
-
-    ax2.plot(ma_drawdown, label="MA Drawdown", linewidth=3, color="blue")
-    ax2.plot(mr_drawdown, label="MR Drawdown", linewidth=3, color="red", linestyle="--")
-    ax2.plot(adaptive_drawdown, label="Adaptive Drawdown", linewidth=3, color="purple")
-    ax2.plot(bh_drawdown, label="Buy & Hold Drawdown", linewidth=3, color="green")
-
-    ax2.axhline(y=0, color="black", linewidth=2, linestyle="--", alpha=0.5)
-
-    ax2.set_title("Drawdown", fontsize=15, fontweight="bold", loc="left")
-    ax2.legend(loc="upper left")
-    ax2.grid(True)
-
-    # Trade Profit Distribution
-    ax3.hist(ma_profits, bins=20, alpha=0.6, label="MA")
-    ax3.hist(mr_profits, bins=20, alpha=0.6, label="MR")
-    ax3.hist(ad_profits, bins=20, alpha=0.6, label="Adaptive")
-
-    ax3.set_title("Trade Profit Distribution", fontsize=15, fontweight="bold", loc="left")
-    ax3.set_xlabel("Profit per Trade")
-    ax3.set_ylabel("Number of Trades")
-
-    ax3.legend(loc="upper left")
-    ax3.grid(True)
-
-    # Win/Loss Distribution
-    ma_wins = sum(1 for p in ma_profits if p > 0)
-    ma_losses = sum(1 for p in ma_profits if p <= 0)
-
-    mr_wins = sum(1 for p in mr_profits if p > 0)
-    mr_losses = sum(1 for p in mr_profits if p <= 0)
-
-    ad_wins = sum(1 for p in ad_profits if p > 0)
-    ad_losses = sum(1 for p in ad_profits if p <= 0)
-
-    labels = ["MA Wins", "MA Losses", "MR Wins", "MR Losses", "AD Wins", "AD Losses"]
-    values = [ma_wins, ma_losses, mr_wins, mr_losses, ad_wins, ad_losses]
-
-    colors = ["green", "red", "orange", "darkorange", "purple", "magenta"]
-
-    ax4.bar(labels, values, color=colors)
-
-    ax4.set_title("Win/Loss Trade Count", fontsize=15, fontweight="bold", loc="left")
-    ax4.set_ylabel("Number of Trades")
-    ax4.grid(True)
-
-    # Rolling Sharpe Ratio
-    ax5.plot(ma_roll, label="MA Sharpe", linewidth=2)
-    ax5.plot(mr_roll, label="MR Sharpe", linewidth=2)
-    ax5.plot(ad_roll, label="Adaptive Sharpe", linewidth=2)
-
-    ax5.axhline(y=0, color="black", linestyle="--", linewidth=1)
-
-    ax5.set_title("Rolling Sharpe Ratio", fontsize=15, fontweight="bold", loc="left")
-    ax5.set_ylabel("Sharpe")
-    ax5.set_xlabel("Backtest Days")
-
-    ax5.legend(loc="upper left")
-    ax5.grid(True)
-
-    # Calculate strategy returns
-    ma_returns = np.diff(ma_equity) / ma_equity[:-1]
-    mr_returns = np.diff(mr_equity) / mr_equity[:-1]
-    ad_returns = np.diff(adaptive_equity) / adaptive_equity[:-1]
-
-    # Strategy returns for correlation
-    min_len = min(len(ma_returns), len(mr_returns), len(ad_returns))
-
-    ma_returns = ma_returns[:min_len]
-    mr_returns = mr_returns[:min_len]
-    ad_returns = ad_returns[:min_len]
-
-    # Prevent numpy warnings if strategies never traded
-    if (
-            len(ma_returns) == 0
-            or len(mr_returns) == 0
-            or len(ad_returns) == 0
-            or np.std(ma_returns) == 0
-            or np.std(mr_returns) == 0
-            or np.std(ad_returns) == 0
-    ):
-        corr_matrix = None
-    else:
-        corr_matrix = np.corrcoef([
-            ma_returns,
-            mr_returns,
-            ad_returns
-        ])
-    if corr_matrix is not None:
-        print("\nStrategy Correlation Matrix")
-        print(" MA   MR   AD")
-        for row in corr_matrix:
-            print(" ".join(f"{v:5.2f}" for v in row))
-
-    print(f"\nGenerating chart for: {ticker}")
-
-    plt.tight_layout()
-
-    filename = f"chart_{ticker}_{BOT_NAME}.png"
-
-    plt.savefig(filename)
-
-    print("\nReport saved:")
-    print(" ", os.path.abspath(filename))
 
     # print("Displaying chart window...")
 

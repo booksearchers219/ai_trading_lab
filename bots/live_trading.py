@@ -166,6 +166,15 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
     for _ in range(1):
 
+        # ---------------------------------------------------------
+        # Initialize starting equity for daily P/L tracking
+        # This ensures the variable always exists even if
+        # the portfolio state was reset or the bot restarted.
+        # ---------------------------------------------------------
+
+        if "starting_equity" not in locals():
+            starting_equity = portfolio.total_value({})
+
         print("\n==============================")
         print("STARTING NEW TRADING CYCLE")
         print("==============================")
@@ -1220,8 +1229,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
                 high_prices.pop(ticker, None)
 
-            if "starting_equity" not in locals():
-                starting_equity = portfolio.total_value(prices)
+
 
         if not prices:
             print("\nNo market data this cycle.")

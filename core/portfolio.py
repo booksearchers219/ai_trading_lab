@@ -1,6 +1,6 @@
 from datetime import datetime
 class Portfolio:
-    
+
 
     def __init__(self, cash):
         self.cash = cash
