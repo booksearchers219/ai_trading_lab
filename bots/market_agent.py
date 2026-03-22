@@ -31,6 +31,7 @@ from core.strategy_stats import record_trade, print_strategy_stats
 from engines.autonomous_engine import run_autonomous_cycle
 from utils.reporting import max_drawdown, rolling_sharpe
 from utils.strategy_loader import load_best_strategies
+import json
 from visualization.backtest_report import generate_backtest_report
 import time
 
@@ -63,6 +64,14 @@ DISCOVERY_UNIVERSE = [
     "NVDA", "AMD", "AVGO", "TSLA", "META", "AAPL", "MSFT",
     "GOOGL", "AMZN", "NFLX", "SMCI", "ARM", "INTC",
     "MU", "QCOM", "ADBE", "CRM", "ORCL", "NOW", "SHOP"
+]
+
+EVOLUTION_TEST_UNIVERSE = [
+    "SPY",
+    "QQQ",
+    "NVDA",
+    "BTC-USD",
+    "ETH-USD"
 ]
 
 
@@ -212,6 +221,34 @@ def run_research_pipeline():
 
     lab_args = argparse.Namespace(ticker="SPY", window=12, top=10, report=False)
     run_strategy_lab(lab_args)
+
+    # --------------------------------------------------
+    # Export best strategies for trading bots
+    # --------------------------------------------------
+
+    try:
+
+        league = load_league()
+
+        top_strategies = [s for s in league if s["sharpe"] > 0][:10]
+
+        export_data = []
+
+        for s in top_strategies:
+            export_data.append({
+                "strategy": s["strategy"],
+                "short": s.get("short"),
+                "long": s.get("long"),
+                "sharpe": s.get("sharpe")
+            })
+
+        with open("best_strategies.json", "w") as f:
+            json.dump(export_data, f, indent=2)
+
+        print("Exported best_strategies.json")
+
+    except Exception as e:
+        print("Strategy export failed:", e)
 
 
 if __name__ == "__main__":
@@ -876,25 +913,53 @@ if __name__ == "__main__":
 
             try:
 
-                if strat == "MA":
-                    equity, final, *_ = run_backtest(
-                        data,
-                        lambda d: analyze_market(d, p1, p2)
-                    )
+                sharpe_scores = []
 
-                elif strat == "MR":
-                    equity, final, *_ = run_backtest(
-                        data,
-                        lambda d: mean_reversion_strategy(d, -p1 / 100)
-                    )
+                for symbol in EVOLUTION_TEST_UNIVERSE:
 
-                elif strat == "VOL":
-                    equity, final, *_ = run_backtest(
-                        data,
-                        volatility_breakout_strategy
-                    )
+                    try:
 
-                sharpe = calculate_sharpe(equity)
+                        test_data = get_recent_data(symbol, 12)
+
+                        if strat == "MA":
+                            equity, final, *_ = run_backtest(
+                                test_data,
+                                lambda d: analyze_market(d, p1, p2)
+                            )
+
+                        elif strat == "MR":
+                            equity, final, *_ = run_backtest(
+                                test_data,
+                                lambda d: mean_reversion_strategy(d, -p1 / 100)
+                            )
+
+                        elif strat == "VOL":
+                            equity, final, *_ = run_backtest(
+                                test_data,
+                                volatility_breakout_strategy
+                            )
+
+                        elif strat == "RSI":
+                            equity, final, *_ = run_backtest(
+                                test_data,
+                                lambda d: rsi_strategy(d, p1, p2)
+                            )
+
+                        elif strat == "MOM":
+                            equity, final, *_ = run_backtest(
+                                test_data,
+                                lambda d: momentum_strategy(d, p1)
+                            )
+
+                        sharpe_scores.append(calculate_sharpe(equity))
+
+                    except Exception:
+                        continue
+
+                if sharpe_scores:
+                    sharpe = sum(sharpe_scores) / len(sharpe_scores)
+                else:
+                    sharpe = -999
 
             except Exception:
                 sharpe = -999
@@ -937,6 +1002,32 @@ if __name__ == "__main__":
 
     league = run_strategy_darwinism(league)
     save_league(league)
+
+    # --------------------------------------------------
+    # Export best strategies for live trading bots
+    # --------------------------------------------------
+
+    try:
+
+        top_strategies = [s for s in league if s["sharpe"] > 0][:10]
+
+        export_data = []
+
+        for s in top_strategies:
+            export_data.append({
+                "strategy": s["strategy"],
+                "short": s.get("short"),
+                "long": s.get("long"),
+                "sharpe": s.get("sharpe")
+            })
+
+        with open("best_strategies.json", "w") as f:
+            json.dump(export_data, f, indent=2)
+
+        print("\nExported best strategies to best_strategies.json")
+
+    except Exception as e:
+        print("Strategy export failed:", e)
 
 
 

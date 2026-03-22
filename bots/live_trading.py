@@ -16,6 +16,7 @@ from charts.trade_charts import generate_trade_chart
 from core.portfolio import Portfolio
 from core.portfolio_state import save_state, load_state
 from core.strategies import analyze_market, mean_reversion_strategy, adaptive_strategy
+from utils.strategy_loader import load_best_strategies
 from core.strategies import regime_history
 
 from equity_logger import log_equity
@@ -175,6 +176,27 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         print("\n==============================")
         print("STARTING NEW TRADING CYCLE")
         print("==============================")
+
+        # --------------------------------------------------
+        # Load AI-discovered strategies
+        # --------------------------------------------------
+
+        try:
+            best_strategies = load_best_strategies(10)
+
+            # Split strategies by type
+            ma_strats = [s for s in best_strategies if s["strategy"] == "MA"]
+            mr_strats = [s for s in best_strategies if s["strategy"] == "MR"]
+            vol_strats = [s for s in best_strategies if s["strategy"] == "VOL"]
+
+            print(f"Loaded {len(best_strategies)} AI strategies")
+
+            for s in best_strategies[:3]:
+                print("AI Strategy:", s)
+
+        except Exception as e:
+            print("Strategy load error:", e)
+            best_strategies = []
 
         if os.getenv("TERM"):
             os.system("clear")
@@ -571,11 +593,32 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             signals = {}
 
             if regime == "TRENDING":
-                signals["MA"] = analyze_market(data)
+
+                if ma_strats:
+                    best = ma_strats[0]
+                    short = best.get("short")
+                    long = best.get("long")
+
+                    signals["MA"] = analyze_market(data, short, long)
+
+                else:
+                    signals["MA"] = analyze_market(data)
+
                 signals["AD"] = adaptive_strategy(data, adaptive_state)
 
+
             elif regime == "SIDEWAYS":
-                signals["MR"] = mean_reversion_strategy(data)
+
+                if mr_strats:
+
+                    best = mr_strats[0]
+
+                    signals["MR"] = mean_reversion_strategy(data)
+
+                else:
+
+                    signals["MR"] = mean_reversion_strategy(data)
+
                 signals["AD"] = adaptive_strategy(data, adaptive_state)
 
             else:
