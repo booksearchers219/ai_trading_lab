@@ -30,12 +30,42 @@ STOP_LOSS_PCT = 0.10
 TRAILING_STOP_PCT = 0.12
 SIGNAL_CONFIRM_CYCLES = 1
 MIN_VOLATILITY = 0.01
-MAX_NEW_TRADES_PER_CYCLE = 5
+MAX_NEW_TRADES_PER_CYCLE = 10
 
 SCAN_UNIVERSE = [
+
+    # Index
     "SPY",
-    "NVDA", "AMD", "TSLA", "META", "AAPL",
-    "MSFT", "GOOGL", "AMZN", "AVGO", "NFLX"
+
+    # Big tech
+    "NVDA","AMD","TSLA","META","AAPL","MSFT","GOOGL","AMZN","AVGO","NFLX",
+
+    # AI / cloud
+    "SMCI","ARM","INTC","MU","QCOM","ADBE","CRM","ORCL","NOW","SHOP",
+
+    # Cybersecurity / software
+    "PANW","NET","DDOG","ZS","SNOW","MDB","OKTA","CRWD",
+
+    # fintech / crypto
+    "COIN","PYPL","SQ","HOOD","MSTR",
+
+    # consumer / internet
+    "UBER","LYFT","ROKU","DASH","ABNB",
+
+    # retail
+    "COST","WMT","TGT","HD","LOW",
+
+    # energy
+    "XOM","CVX","SLB","COP","OXY",
+
+    # semiconductors
+    "TSM","ASML","KLAC","LRCX","AMAT",
+
+    # biotech / pharma
+    "MRNA","PFE","LLY","REGN","VRTX",
+
+    # growth / momentum
+    "PLTR","RBLX","SOFI","AI","BILL","UPST"
 ]
 
 MEMORY_FILE = "strategy_memory.json"
@@ -837,7 +867,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             if combined_signal == "BUY":
 
-                if trend_1h == "DOWN":
+                if trend_1h == "DOWN" and regime == "TRENDING":
                     combined_signal = "HOLD"
 
                 # Avoid catching falling knives
@@ -850,7 +880,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             ma50 = data["Close"].rolling(50).mean().iloc[-1]
 
-            if combined_signal == "BUY" and data["Close"].iloc[-1] < ma50:
+            if combined_signal == "BUY" and regime == "TRENDING" and data["Close"].iloc[-1] < ma50:
                 combined_signal = "HOLD"
 
             if sell_votes >= 2:
