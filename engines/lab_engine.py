@@ -16,7 +16,7 @@ def run_strategy_lab(args):
     candidate_universe = [
         "NVDA", "SMCI", "TSLA", "AMD", "PLTR", "COIN", "META", "AMZN", "NFLX", "MSFT",
         "AAPL", "SHOP", "ROKU", "PANW", "SNOW", "UBER", "CRM", "GOOGL", "AVGO", "DKNG",
-        "INTC", "MU", "BABA", "SQ", "RIVN", "LCID", "SOFI", "AFRM", "DDOG", "NET"
+        "INTC", "MU", "BABA", "RIVN", "LCID", "SOFI", "AFRM", "DDOG", "NET"
     ]
 
     vol_scores = []
