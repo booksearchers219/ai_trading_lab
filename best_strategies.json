@@ -25,38 +25,38 @@
   },
   {
     "strategy": "MA",
-    "short": 28,
-    "long": 65,
-    "sharpe": 1.6294604759758697
+    "short": 5,
+    "long": 110,
+    "sharpe": 0.6679925878426339
   },
   {
     "strategy": "MA",
-    "short": 38,
-    "long": 66,
-    "sharpe": 1.6207718040125119
+    "short": 15,
+    "long": 110,
+    "sharpe": 0.6666574343937406
   },
   {
     "strategy": "MA",
-    "short": 10,
-    "long": 40,
-    "sharpe": 1.5639118489274462
+    "short": 25,
+    "long": 90,
+    "sharpe": 0.44221344753183184
   },
   {
     "strategy": "MA",
-    "short": 20,
-    "long": 30,
-    "sharpe": 1.5639118489274462
+    "short": 40,
+    "long": 110,
+    "sharpe": 0.44221344753183184
+  },
+  {
+    "strategy": "MA",
+    "short": 25,
+    "long": 80,
+    "sharpe": 0.3512403413013038
   },
   {
     "strategy": "MA",
     "short": 5,
     "long": 30,
-    "sharpe": 0.5125611446740178
-  },
-  {
-    "strategy": "MR",
-    "short": 5,
-    "long": null,
-    "sharpe": 0.28543724677779264
+    "sharpe": 0.33382463447185695
   }
 ]

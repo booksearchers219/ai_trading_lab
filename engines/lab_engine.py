@@ -2,14 +2,14 @@ import os
 import csv
 import multiprocessing as mp
 import numpy as np
-
+from visualization.backtest_report import generate_backtest_report
 from data_utils import get_recent_data
 from workers.lab_worker import lab_worker
 from utils.reporting import plot_strategy_landscape
 from core.strategy_registry import STRATEGY_REGISTRY
 
-def run_strategy_lab(args):
 
+def run_strategy_lab(args):
     print("\nRunning Strategy Lab\n")
 
     base_universe = ["NVDA", "AAPL", "MSFT", "AMD", "TSLA"]
@@ -21,7 +21,6 @@ def run_strategy_lab(args):
     data_cache = {t: get_recent_data(t, args.window) for t in tickers}
 
     results = []
-
 
     jobs = []
 
@@ -171,3 +170,50 @@ def run_strategy_lab(args):
 
     print(f"\nStrategy League Updated: {len(survivors)} survivors")
     print("\nSaved strategies to strategies.csv")
+
+    # --------------------------------------------------
+    # Generate backtest report chart
+    # --------------------------------------------------
+
+    try:
+
+        ticker = tickers[0]
+        data = data_cache[ticker]
+
+        # Run a basic backtest so we have chart data
+        from core.strategies import analyze_market, mean_reversion_strategy, adaptive_strategy
+        from backtest_utils import run_backtest
+
+        ma_equity, _, ma_buys, ma_sells, ma_profits = run_backtest(data, analyze_market)
+        mr_equity, _, mr_buys, mr_sells, mr_profits = run_backtest(data, mean_reversion_strategy)
+        adaptive_equity, _, ad_buys, ad_sells, ad_profits = run_backtest(data, adaptive_strategy)
+
+        # simple placeholders for comparison curves
+        bh_equity = ma_equity
+        vote_equity = ma_equity
+        council_equity = ma_equity
+
+        if tickers[0] == args.ticker:
+            generate_backtest_report(
+                ticker,
+                "lab",
+                data,
+                ma_equity,
+                mr_equity,
+                adaptive_equity,
+                bh_equity,
+                vote_equity,
+                council_equity,
+                ma_buys,
+                ma_sells,
+                mr_buys,
+                mr_sells,
+                ad_buys,
+                ad_sells,
+                ma_profits,
+                mr_profits,
+                ad_profits
+            )
+
+    except Exception as e:
+        print("Chart generation failed:", e)

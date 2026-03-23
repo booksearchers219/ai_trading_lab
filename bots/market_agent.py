@@ -32,7 +32,7 @@ from engines.autonomous_engine import run_autonomous_cycle
 from utils.reporting import max_drawdown, rolling_sharpe
 from utils.strategy_loader import load_best_strategies
 import json
-from visualization.backtest_report import generate_backtest_report
+from visualization.backtest_report_bak_simple import generate_backtest_report
 import time
 import random
 from trend_panel import print_trend_panel, print_market_breadth
