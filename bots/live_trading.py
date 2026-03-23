@@ -4,7 +4,7 @@ import math
 import json
 import shutil
 from datetime import datetime, timedelta
-
+import random
 import yfinance as yf
 import pytz
 
@@ -39,6 +39,66 @@ SCAN_UNIVERSE = [
 ]
 
 MEMORY_FILE = "strategy_memory.json"
+
+LEAGUE_FILE = "strategy_league.json"
+
+
+def load_league():
+
+    if not os.path.exists(LEAGUE_FILE):
+        return []
+
+    with open(LEAGUE_FILE) as f:
+        return json.load(f)
+
+
+def save_league(league):
+
+    with open(LEAGUE_FILE, "w") as f:
+        json.dump(league, f, indent=2)
+
+def generate_random_strategy():
+
+    strat_type = random.choice(["MA", "MR"])
+
+    if strat_type == "MA":
+
+        short = random.randint(3, 20)
+        long = random.randint(short + 5, 60)
+
+        return {
+            "strategy": "MA",
+            "short": short,
+            "long": long,
+            "score": 0,
+            "trades": 0
+        }
+
+    if strat_type == "MR":
+
+        window = random.randint(5, 30)
+
+        return {
+            "strategy": "MR",
+            "window": window,
+            "score": 0,
+            "trades": 0
+        }
+
+def mutate_strategy(params):
+
+    mutated = params.copy()
+
+    if "short" in mutated:
+        mutated["short"] += random.choice([-1, 0, 1])
+
+    if "long" in mutated:
+        mutated["long"] += random.choice([-2, 0, 2])
+
+    mutated["short"] = max(2, mutated["short"])
+    mutated["long"] = max(mutated["short"] + 1, mutated["long"])
+
+    return mutated
 
 
 def load_strategy_memory():
@@ -105,6 +165,23 @@ def compute_sector_flow(prices, data_cache):
 
 
 def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_bot"):
+    league = load_league() or []
+
+    if not league:
+        league = []
+
+    TARGET_STRATEGIES = 120
+
+    if len(league) < TARGET_STRATEGIES:
+
+        print("Generating new strategies...")
+
+        while len(league) < TARGET_STRATEGIES:
+            league.append(generate_random_strategy())
+
+        save_league(league)
+
+
     BOT_NAME = bot_name
     print("DEBUG logger BOT_NAME =", BOT_NAME)
 
@@ -182,7 +259,24 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         # --------------------------------------------------
 
         try:
-            best_strategies = load_best_strategies(10)
+            league = load_league()
+
+            league = sorted(league, key=lambda x: x["score"], reverse=True)
+
+            best_strategies = league[:25]
+
+            # evolve strategies
+            evolved = []
+
+            for s in best_strategies:
+
+                if s["strategy"] == "MA":
+                    child = s.copy()
+                    child.update(mutate_strategy(s))
+
+                    evolved.append(child)
+
+            best_strategies.extend(evolved)
 
             # Split strategies by type
             ma_strats = [s for s in best_strategies if s["strategy"] == "MA"]
@@ -247,6 +341,8 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         print()
 
         prices = {}
+
+
 
         tickers = " ".join(all_symbols)
 
@@ -316,17 +412,35 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
                         try:
 
                             if ticker in crypto_data:
-
                                 price = crypto_data[ticker]["Close"].iloc[-1]
 
-                                if price == price:  # avoid NaN
-                                    prices[ticker] = float(price)
+                            elif "Close" in crypto_data and ticker in crypto_data["Close"]:
+                                price = crypto_data["Close"][ticker].iloc[-1]
+
+                            else:
+                                continue
+
+                            if price == price:
+                                prices[ticker] = float(price)
 
                         except Exception:
                             continue
 
                 except Exception:
                     pass
+
+        data_ratio = len(prices) / max(1, len(all_symbols))
+
+        if data_ratio < 0.7:
+            print("\n⚠ DATA QUALITY FAILURE")
+            print("Symbols received:", len(prices))
+            print("Expected:", len(all_symbols))
+
+            print("Skipping cycle to avoid bad trades\n")
+
+            time.sleep(60)
+            return
+
 
         current_time = time.time()
 
@@ -352,7 +466,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             p = prices.get(t)
 
-            if p is None or math.isnan(p):
+            if p is None or not isinstance(p, (int, float)) or math.isnan(p):
                 cell = f"{t}:data"
             else:
                 cell = f"{t}:{p:.2f}"
@@ -459,6 +573,33 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         print(f"\nMARKET REGIME: {market_regime}")
         print(f"RISK MODE: {risk_mode}\n")
 
+        # ----- CRASH PROTECTION -----
+
+        crash_detected = False
+
+        if "BTC-USD" not in data_cache:
+            try:
+                data_cache["BTC-USD"] = get_recent_data("BTC-USD", 100)
+            except Exception:
+                pass
+
+        btc_data = data_cache.get("BTC-USD")
+
+        if btc_data is not None and len(btc_data) > 10:
+
+            recent = btc_data["Close"].iloc[-1]
+            past = btc_data["Close"].iloc[-6]
+
+            drop_pct = (recent - past) / past
+
+            if drop_pct < -0.03:
+                crash_detected = True
+
+        if crash_detected:
+            print("\n🚨 MARKET CRASH DETECTED")
+            print("BTC drop:", f"{drop_pct * 100:.2f}%")
+            print("New BUY trades paused this cycle\n")
+
         # Update strategy weights based on regime
         if market_regime in regime_weights:
             strategy_weights = regime_weights[market_regime].copy()
@@ -471,6 +612,33 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
                 continue
 
             data = data_cache.get(ticker)
+
+            # ----- 1H TREND FILTER -----
+
+            trend_1h = "UNKNOWN"
+
+            try:
+
+                data_1h = yf.download(
+                    ticker,
+                    period="3d",
+                    interval="1h",
+                    progress=False,
+                    threads=False
+                )
+
+                if data_1h is not None and len(data_1h) > 20:
+
+                    ma_fast = data_1h["Close"].tail(5).mean()
+                    ma_slow = data_1h["Close"].tail(20).mean()
+
+                    if ma_fast > ma_slow:
+                        trend_1h = "UP"
+                    else:
+                        trend_1h = "DOWN"
+
+            except Exception:
+                pass
 
             if data is None:
                 continue
@@ -677,6 +845,9 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             if combined_signal == "BUY":
 
+                if trend_1h == "DOWN":
+                    combined_signal = "HOLD"
+
                 # Avoid catching falling knives
                 if recent_return < -0.05:
                     combined_signal = "HOLD"
@@ -690,10 +861,15 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             if combined_signal == "BUY" and data["Close"].iloc[-1] < ma50:
                 combined_signal = "HOLD"
 
-            elif sell_votes >= 2:
+            if sell_votes >= 2:
                 combined_signal = "SELL"
                 vote_strength = sell_votes
 
+            if combined_signal == "SELL":
+                if trend_1h == "UP":
+                    combined_signal = "HOLD"
+
+            # Breadth tracking
             if combined_signal == "BUY":
                 breadth_buy += 1
             elif combined_signal == "SELL":
@@ -703,9 +879,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             if combined_signal in ("BUY", "SELL"):
                 score = vote_strength
-
                 signal_list.append(("COUNCIL", combined_signal, ticker, vote_strength, vote_details, score))
-
         active_keys = {(ticker, signal) for _, signal, ticker, _, _, _ in signal_list}
 
         for key in list(signal_history.keys()):
@@ -722,6 +896,8 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         heat_row = ""
 
         print("DEBUG prices keys:", list(prices.keys()))
+
+
 
         for ticker in prices:
 
@@ -1159,6 +1335,10 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             else:
                 shares = min(shares, int(max_shares))  # integer stocks
 
+            if crash_detected and signal == "BUY":
+                trade_filters.append(f"{ticker}: crash protection")
+                continue
+
             if signal == "BUY" and shares == 0:
                 trade_filters.append(f"{ticker}: position size too small")
                 continue
@@ -1244,16 +1424,28 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
                 reason = " ".join([f"{k}={v}" for k, v in vote_details.items()])
                 print(f"Reason: {reason} ({vote_strength} votes)")
 
+                entry = portfolio.entry_prices.get(ticker, price)
+
                 portfolio.sell(ticker, price, held)
 
                 # --- strategy learning memory ---
-                entry = portfolio.entry_prices.get(ticker, price)
                 pnl = (price - entry) * held
 
-                if strat in strategy_memory:
-                    strategy_memory[strat]["pnl"] += pnl
-                    strategy_memory[strat]["trades"] += 1
-                    save_strategy_memory(strategy_memory)
+                for strategy_name, vote in vote_details.items():
+
+                    if strategy_name in strategy_memory:
+
+                        strategy_memory[strategy_name]["pnl"] += pnl
+                        strategy_memory[strategy_name]["trades"] += 1
+
+                        for s in league:
+                            if s["strategy"] == strategy_name:
+                                s["score"] += pnl
+                                s["trades"] += 1
+
+                save_strategy_memory(strategy_memory)
+
+
                 # --------------------------------
 
                 position_scores.pop(ticker, None)
@@ -1456,7 +1648,54 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             "entry_prices": portfolio.entry_prices
         }, BOT_NAME)
 
+        # -----------------------------
+        # STRATEGY EVOLUTION (PART 7)
+        # -----------------------------
+
+        league = sorted(league, key=lambda x: x["score"], reverse=True)
+
+        # keep best performers
+        league = league[:80]
+
+        for s in league:
+            s["score"] = 0
+            s["trades"] = 0
+
+        # mutate winners
+        while len(league) < 120:
+
+            parent = random.choice(league[:min(10, len(league))])
+
+
+            # 20% chance of totally new strategy
+            if random.random() < 0.2:
+                child = generate_random_strategy()
+            else:
+                child = parent.copy()
+
+                if child.get("strategy") == "MA":
+                    child["long"] = max(child["short"] + 8, child["long"] + random.choice([-2, 0, 2]))
+
+            child["score"] = 0
+            child["trades"] = 0
+
+            league.append(child)
+
+        save_league(league)
+
+        print("Strategy league evolved:", len(league), "strategies")
+
         print()
+
+        print("\nTOP AI STRATEGIES")
+        print("-----------------")
+
+        top = sorted(league, key=lambda x: x["score"], reverse=True)[:5]
+
+        for s in top:
+            print(s)
+
+
 
         print("\nCycle complete.\n")
         print()

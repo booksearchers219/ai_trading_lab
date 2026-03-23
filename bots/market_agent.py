@@ -911,6 +911,8 @@ if __name__ == "__main__":
 
             strat, p1, p2 = gene
 
+
+
             try:
 
                 sharpe_scores = []
@@ -1001,6 +1003,10 @@ if __name__ == "__main__":
     league = update_scores(league)
 
     league = run_strategy_darwinism(league)
+
+    # Keep only the best 500 strategies
+    league = sorted(league, key=lambda x: x["score"], reverse=True)[:500]
+
     save_league(league)
 
     # --------------------------------------------------
