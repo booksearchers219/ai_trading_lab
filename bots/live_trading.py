@@ -342,44 +342,42 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
         prices = {}
 
-
-
-        tickers = " ".join(all_symbols)
-
         if crypto_universe:
+
+            live_data = None
             interval = "15m"
+
         else:
+
+            tickers = " ".join(all_symbols)
             interval = "5m"
 
-        try:
+            try:
 
-            live_data = yf.download(
-                tickers,
-                period="5d",
-                interval=interval,
-                group_by="ticker",
-                progress=False
-            )
+                live_data = yf.download(
+                    tickers,
+                    period="5d",
+                    interval=interval,
+                    group_by="ticker",
+                    progress=False
+                )
 
-        except Exception:
-            live_data = None
+            except Exception:
+                live_data = None
 
         if live_data is not None:
 
             for ticker in all_symbols:
 
-                # crypto handled separately
                 if ticker in crypto_universe:
                     continue
 
                 try:
                     data_cache[ticker] = get_recent_data(ticker, 300)
 
-                    # Single ticker dataframe
                     if "Close" in live_data and not isinstance(live_data["Close"], yf.pandas.Series):
                         price = live_data["Close"].iloc[-1]
 
-                    # Multi-ticker grouped dataframe
                     elif ticker in live_data:
                         price = live_data[ticker]["Close"].iloc[-1]
 
@@ -392,42 +390,31 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
                 except Exception:
                     continue
 
-            # Fetch crypto prices (batch)
-            if crypto_universe:
+        # Fetch crypto prices individually
+        if crypto_universe:
+
+            for ticker in crypto_universe:
 
                 try:
-
-                    crypto_tickers = " ".join(crypto_universe)
-
-                    crypto_data = yf.download(
-                        crypto_tickers,
+                    df = yf.download(
+                        ticker,
                         period="5d",
-                        interval="5m",
-                        group_by="ticker",
-                        progress=False
+                        interval="15m",
+                        progress=False,
+                        threads=False
                     )
 
-                    for ticker in crypto_universe:
+                    if df is not None and len(df) > 0:
 
-                        try:
+                        data_cache[ticker] = df
 
-                            if ticker in crypto_data:
-                                price = crypto_data[ticker]["Close"].iloc[-1]
+                        price = float(df["Close"].iloc[-1].values[0])
 
-                            elif "Close" in crypto_data and ticker in crypto_data["Close"]:
-                                price = crypto_data["Close"][ticker].iloc[-1]
-
-                            else:
-                                continue
-
-                            if price == price:
-                                prices[ticker] = float(price)
-
-                        except Exception:
-                            continue
+                        prices[ticker] = price
 
                 except Exception:
-                    pass
+                    continue
+
 
         data_ratio = len(prices) / max(1, len(all_symbols))
 
@@ -1710,4 +1697,14 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
 if __name__ == "__main__":
     bot = os.getenv("BOT_NAME", "default_bot")
-    run_live_simulation(bot_name=bot)
+    CRYPTO_UNIVERSE = [
+        "BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD",
+        "ADA-USD", "DOGE-USD", "AVAX-USD", "DOT-USD", "LINK-USD",
+        "LTC-USD", "MATIC-USD", "ATOM-USD", "FIL-USD", "NEAR-USD",
+        "APT-USD", "ARB-USD"
+    ]
+
+    run_live_simulation(
+        crypto_universe=CRYPTO_UNIVERSE,
+        bot_name="crypto_bot"
+    )
