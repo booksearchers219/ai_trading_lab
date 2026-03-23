@@ -1,5 +1,7 @@
 import yfinance as yf
 import pandas as pd
+import requests
+from io import StringIO
 from datetime import datetime, timedelta
 
 
@@ -9,7 +11,14 @@ def get_sp500_tickers():
 
     try:
 
-        tables = pd.read_html(url)
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+
+        response = requests.get(url, headers=headers)
+
+        from io import StringIO
+        tables = pd.read_html(StringIO(response.text))
 
         df = tables[0]
 
