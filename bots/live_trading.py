@@ -281,7 +281,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             # Split strategies by type
             ma_strats = [s for s in best_strategies if s["strategy"] == "MA"]
             mr_strats = [s for s in best_strategies if s["strategy"] == "MR"]
-            vol_strats = [s for s in best_strategies if s["strategy"] == "VOL"]
+
 
             print(f"Loaded {len(best_strategies)} AI strategies")
 
@@ -577,28 +577,33 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
         crash_detected = False
 
-        if "BTC-USD" not in data_cache:
-            try:
-                data_cache["BTC-USD"] = get_recent_data("BTC-USD", 100)
-            except Exception:
-                pass
+        if crypto_universe:
 
-        btc_data = data_cache.get("BTC-USD")
+            btc_data = data_cache.get("BTC-USD")
 
-        if btc_data is not None and len(btc_data) > 10:
+            if btc_data is not None and len(btc_data) > 10:
 
-            recent = btc_data["Close"].iloc[-1]
-            past = btc_data["Close"].iloc[-6]
+                recent = btc_data["Close"].iloc[-1]
+                past = btc_data["Close"].iloc[-6]
 
-            drop_pct = (recent - past) / past
+                drop_pct = (recent - past) / past
 
-            if drop_pct < -0.03:
-                crash_detected = True
+                if drop_pct < -0.03:
+                    crash_detected = True
 
-        if crash_detected:
-            print("\n🚨 MARKET CRASH DETECTED")
-            print("BTC drop:", f"{drop_pct * 100:.2f}%")
-            print("New BUY trades paused this cycle\n")
+        else:
+
+            spy_data = data_cache.get("SPY")
+
+            if spy_data is not None and len(spy_data) > 10:
+
+                recent = spy_data["Close"].iloc[-1]
+                past = spy_data["Close"].iloc[-6]
+
+                drop_pct = (recent - past) / past
+
+                if drop_pct < -0.02:
+                    crash_detected = True
 
         # Update strategy weights based on regime
         if market_regime in regime_weights:
@@ -1674,6 +1679,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
                 child = parent.copy()
 
                 if child.get("strategy") == "MA":
+                    child["short"] = max(2, child["short"] + random.choice([-1, 0, 1]))
                     child["long"] = max(child["short"] + 8, child["long"] + random.choice([-2, 0, 2]))
 
             child["score"] = 0
