@@ -34,7 +34,7 @@ from utils.strategy_loader import load_best_strategies
 import json
 from visualization.backtest_report import generate_backtest_report
 import time
-
+import random
 from trend_panel import print_trend_panel, print_market_breadth
 from trade_logger import log_trade
 from scanners.momentum_scanner import find_momentum_leaders, print_momentum_leaders
@@ -60,10 +60,24 @@ STRATEGY = "adaptive"
 MAX_DAILY_LOSS = -0.05  # stop trading at -5% daily loss
 
 
+# --------------------------------------------------
+# DISCOVERY UNIVERSE
+# --------------------------------------------------
+# These stocks are used by the momentum scanner to
+# decide which markets deserve research attention.
+# Expanding this list gives the AI more opportunities.
+# --------------------------------------------------
+
 DISCOVERY_UNIVERSE = [
-    "NVDA", "AMD", "AVGO", "TSLA", "META", "AAPL", "MSFT",
-    "GOOGL", "AMZN", "NFLX", "SMCI", "ARM", "INTC",
-    "MU", "QCOM", "ADBE", "CRM", "ORCL", "NOW", "SHOP"
+    "NVDA","AMD","AVGO","TSLA","META","AAPL","MSFT","GOOGL","AMZN","NFLX",
+
+    "SMCI","ARM","INTC","MU","QCOM","ADBE","CRM","ORCL","NOW","SHOP",
+
+    "PLTR","COIN","MSTR","SNOW","PANW","NET","DDOG","ZS",
+
+    "UBER","LYFT","PYPL","ROKU",
+
+    "COST","WMT","HD","LOW","TGT"
 ]
 
 EVOLUTION_TEST_UNIVERSE = [
@@ -89,7 +103,51 @@ TOP10 = [
 ]
 
 
+# --------------------------------------------------
+# AI Ticker Selection
+# --------------------------------------------------
+# This function chooses the most interesting tickers
+# for strategy research.
+#
+# It prioritizes stocks with:
+# - high volatility
+# - large recent moves
+#
+# This prevents the research daemon from wasting time
+# on slow or inactive stocks.
+# --------------------------------------------------
 
+
+
+def select_research_tickers(results, limit=50):
+
+    ranked = []
+
+    for r in results:
+
+        ticker = r.get("ticker")
+
+        # use absolute move as a proxy for volatility
+        move = abs(r.get("pct_move", 0))
+
+        ranked.append((move, ticker))
+
+    # sort by biggest moves
+    ranked.sort(reverse=True)
+
+    # take the top candidates
+    top = [t for _, t in ranked[:limit]]
+
+    # if something goes wrong fallback to random selection
+    if len(top) < limit:
+
+        pool = [r.get("ticker") for r in results]
+
+        random.shuffle(pool)
+
+        top = pool[:limit]
+
+    return top
 
 
 def compute_strategy_allocation(ma_sharpe, mr_sharpe, ad_sharpe):
@@ -203,18 +261,64 @@ def run_research_pipeline():
 
     print("\nRunning research pipeline")
 
-    scan_args = argparse.Namespace(
-        scan="sp500",
-        limit=50,
-        window=6,
-        crypto=False,
-        parallel=False,
-        report=False,
-        ticker="SPY",
-        top=20
-    )
 
-    run_scan_and_report(scan_args)
+
+    # --------------------------------------------------
+    # SMART RESEARCH SCAN
+    # --------------------------------------------------
+    # Scan a larger pool of S&P stocks so we are not
+    # stuck with alphabetical tickers.
+    # The scan engine will then rank opportunities
+    # and keep the best ones.
+    # --------------------------------------------------
+
+    # --------------------------------------------------
+    # VOLATILITY RADAR RESEARCH MODE
+    # --------------------------------------------------
+    # Instead of scanning alphabetical S&P stocks,
+    # we first find the most active stocks in the market.
+    #
+    # These are the best candidates for discovering
+    # profitable trading strategies.
+    # --------------------------------------------------
+
+    print("\nScanning market for momentum leaders...")
+
+    # Find the 100 most active stocks from the discovery universe
+    leaders = find_momentum_leaders(DISCOVERY_UNIVERSE, top_n=15)
+
+    selected_tickers = []
+
+    for sym, pct in leaders:
+
+        # Skip tickers with missing or bad data
+        if pct != pct:
+            print(f"Skipping {sym} (no data)")
+            continue
+
+        print(f"Research candidate: {sym} {pct * 100:+.2f}%")
+        selected_tickers.append(sym)
+
+
+
+    # --------------------------------------------------
+    # Run research scan for each momentum ticker
+    # --------------------------------------------------
+
+    for sym in selected_tickers:
+        print(f"\nRunning scan for {sym}")
+
+        scan_args = argparse.Namespace(
+            scan=None,
+            ticker=sym,
+            window=6,
+            crypto=False,
+            parallel=False,
+            report=False,
+            top=10
+        )
+
+        run_scan_and_report(scan_args)
 
     evo_args = argparse.Namespace(ticker="SPY", window=12)
     run_evolution_search(evo_args)
