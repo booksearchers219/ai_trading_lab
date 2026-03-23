@@ -7,12 +7,35 @@ from data_utils import get_recent_data
 from workers.lab_worker import lab_worker
 from utils.reporting import plot_strategy_landscape
 from core.strategy_registry import STRATEGY_REGISTRY
+import random
 
 
 def run_strategy_lab(args):
     print("\nRunning Strategy Lab\n")
 
-    base_universe = ["NVDA", "AAPL", "MSFT", "AMD", "TSLA"]
+    candidate_universe = [
+        "NVDA", "SMCI", "TSLA", "AMD", "PLTR", "COIN", "META", "AMZN", "NFLX", "MSFT",
+        "AAPL", "SHOP", "ROKU", "PANW", "SNOW", "UBER", "CRM", "GOOGL", "AVGO", "DKNG",
+        "INTC", "MU", "BABA", "SQ", "RIVN", "LCID", "SOFI", "AFRM", "DDOG", "NET"
+    ]
+
+    vol_scores = []
+
+    for t in candidate_universe:
+        try:
+            d = get_recent_data(t, args.window)
+            vol = d["Close"].pct_change().std()
+            vol_scores.append((t, vol))
+        except:
+            continue
+
+    vol_scores.sort(key=lambda x: x[1], reverse=True)
+
+    base_universe = [t for t, _ in vol_scores[:20]]
+
+    random.shuffle(base_universe)
+
+    random.shuffle(base_universe)
 
     if args.ticker:
         tickers = [args.ticker] + [t for t in base_universe if t != args.ticker]
