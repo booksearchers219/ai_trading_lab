@@ -279,6 +279,9 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         # the portfolio state was reset or the bot restarted.
         # ---------------------------------------------------------
 
+        if os.getenv("TERM"):
+            os.system("clear")
+
         print("\n==============================")
         print(f"STARTING TRADING CYCLE {cycle}")
         print("==============================")
@@ -320,8 +323,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             print("Strategy load error:", e)
             best_strategies = []
 
-        if os.getenv("TERM"):
-            os.system("clear")
+
 
         print("========== AI TRADING LAB ==========")
         print(f"BOT: {BOT_NAME}")
