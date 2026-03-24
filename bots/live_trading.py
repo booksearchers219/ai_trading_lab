@@ -38,34 +38,34 @@ SCAN_UNIVERSE = [
     "SPY",
 
     # Big tech
-    "NVDA","AMD","TSLA","META","AAPL","MSFT","GOOGL","AMZN","AVGO","NFLX",
+    "NVDA", "AMD", "TSLA", "META", "AAPL", "MSFT", "GOOGL", "AMZN", "AVGO", "NFLX",
 
     # AI / cloud
-    "SMCI","ARM","INTC","MU","QCOM","ADBE","CRM","ORCL","NOW","SHOP",
+    "SMCI", "ARM", "INTC", "MU", "QCOM", "ADBE", "CRM", "ORCL", "NOW", "SHOP",
 
     # Cybersecurity / software
-    "PANW","NET","DDOG","ZS","SNOW","MDB","OKTA","CRWD",
+    "PANW", "NET", "DDOG", "ZS", "SNOW", "MDB", "OKTA", "CRWD",
 
     # fintech / crypto
-    "COIN","PYPL","SQ","HOOD","MSTR",
+    "COIN", "PYPL", "SQ", "HOOD", "MSTR",
 
     # consumer / internet
-    "UBER","LYFT","ROKU","DASH","ABNB",
+    "UBER", "LYFT", "ROKU", "DASH", "ABNB",
 
     # retail
-    "COST","WMT","TGT","HD","LOW",
+    "COST", "WMT", "TGT", "HD", "LOW",
 
     # energy
-    "XOM","CVX","SLB","COP","OXY",
+    "XOM", "CVX", "SLB", "COP", "OXY",
 
     # semiconductors
-    "TSM","ASML","KLAC","LRCX","AMAT",
+    "TSM", "ASML", "KLAC", "LRCX", "AMAT",
 
     # biotech / pharma
-    "MRNA","PFE","LLY","REGN","VRTX",
+    "MRNA", "PFE", "LLY", "REGN", "VRTX",
 
     # growth / momentum
-    "PLTR","RBLX","SOFI","AI","BILL","UPST"
+    "PLTR", "RBLX", "SOFI", "AI", "BILL", "UPST"
 ]
 
 MEMORY_FILE = "strategy_memory.json"
@@ -74,7 +74,6 @@ LEAGUE_FILE = "strategy_league.json"
 
 
 def load_league():
-
     if not os.path.exists(LEAGUE_FILE):
         return []
 
@@ -83,16 +82,14 @@ def load_league():
 
 
 def save_league(league):
-
     with open(LEAGUE_FILE, "w") as f:
         json.dump(league, f, indent=2)
 
-def generate_random_strategy():
 
+def generate_random_strategy():
     strat_type = random.choice(["MA", "MR"])
 
     if strat_type == "MA":
-
         short = random.randint(3, 20)
         long = random.randint(short + 5, 60)
 
@@ -105,7 +102,6 @@ def generate_random_strategy():
         }
 
     if strat_type == "MR":
-
         window = random.randint(5, 30)
 
         return {
@@ -115,8 +111,8 @@ def generate_random_strategy():
             "trades": 0
         }
 
-def mutate_strategy(params):
 
+def mutate_strategy(params):
     mutated = params.copy()
 
     if "short" in mutated:
@@ -211,7 +207,6 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
         save_league(league)
 
-
     BOT_NAME = bot_name
     print("DEBUG logger BOT_NAME =", BOT_NAME)
 
@@ -272,7 +267,11 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
     data_cache = {}
 
-    for _ in range(1):
+    cycle = 0
+
+    while True:
+
+        cycle += 1
 
         # ---------------------------------------------------------
         # Initialize starting equity for daily P/L tracking
@@ -281,7 +280,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         # ---------------------------------------------------------
 
         print("\n==============================")
-        print("STARTING NEW TRADING CYCLE")
+        print(f"STARTING TRADING CYCLE {cycle}")
         print("==============================")
 
         # --------------------------------------------------
@@ -311,7 +310,6 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             # Split strategies by type
             ma_strats = [s for s in best_strategies if s["strategy"] == "MA"]
             mr_strats = [s for s in best_strategies if s["strategy"] == "MR"]
-
 
             print(f"Loaded {len(best_strategies)} AI strategies")
 
@@ -423,28 +421,61 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         # Fetch crypto prices individually
         if crypto_universe:
 
-            for ticker in crypto_universe:
+            if crypto_universe:
+
+                tickers = " ".join(crypto_universe)
 
                 try:
-                    df = yf.download(
-                        ticker,
+                    crypto_data = yf.download(
+                        tickers,
                         period="5d",
                         interval="15m",
-                        progress=False,
-                        threads=False
+                        group_by="ticker",
+                        progress=False
                     )
 
-                    if df is not None and len(df) > 0:
+                    for ticker in crypto_universe:
 
-                        data_cache[ticker] = df
+                        try:
 
-                        price = float(df["Close"].iloc[-1].values[0])
+                            df = crypto_data[ticker]
 
-                        prices[ticker] = price
+                            if df is None or len(df) == 0:
+                                continue
 
-                except Exception:
+                            data_cache[ticker] = df
+
+                            price = float(df["Close"].iloc[-1].item())
+
+                            if price > 0:
+                                prices[ticker] = price
+                            else:
+                                print(f"Skipping bad data: {ticker}")
+
+                        except Exception:
+                            continue
+
+                except Exception as e:
+                    print("Crypto download error:", e)
+
+            try:
+
+                df = crypto_data[ticker]
+
+                if df is None or len(df) == 0:
                     continue
 
+                data_cache[ticker] = df
+
+                price = float(df["Close"].iloc[-1])
+
+                if price > 0:
+                    prices[ticker] = price
+                else:
+                    print(f"Skipping bad data: {ticker}")
+
+            except Exception:
+                continue
 
         data_ratio = len(prices) / max(1, len(all_symbols))
 
@@ -457,7 +488,6 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             time.sleep(60)
             return
-
 
         current_time = time.time()
 
@@ -918,8 +948,6 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         heat_row = ""
 
         print("DEBUG prices keys:", list(prices.keys()))
-
-
 
         for ticker in prices:
 
@@ -1467,7 +1495,6 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
                 save_strategy_memory(strategy_memory)
 
-
                 # --------------------------------
 
                 position_scores.pop(ticker, None)
@@ -1688,7 +1715,6 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             parent = random.choice(league[:min(10, len(league))])
 
-
             # 20% chance of totally new strategy
             if random.random() < 0.2:
                 child = generate_random_strategy()
@@ -1718,11 +1744,16 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         for s in top:
             print(s)
 
+        print(f"\nCycle {cycle} complete.")
 
+        # calculate next cycle time
+        sleep_seconds = 600 if crypto_universe else 300
+        next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
-        print("\nCycle complete.")
+        print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Sleeping {sleep_seconds // 60} minutes...\n")
 
-
+        time.sleep(sleep_seconds)
 
 
 if __name__ == "__main__":

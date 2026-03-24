@@ -1,6 +1,6 @@
 import sys
 import os
-
+from datetime import datetime, timedelta
 from engines.walkforward_engine import walkforward_test
 import argparse
 
@@ -50,15 +50,10 @@ from evolution.genome_engine import evolve_population
 from evolution.dna_engine import evolve_population as evolve_dna, random_gene
 from evolution.darwin_engine import run_strategy_darwinism
 
-
-
-
-
 BOT_NAME = os.getenv("BOT_NAME", "default_bot")
 STRATEGY = "adaptive"
 
 MAX_DAILY_LOSS = -0.05  # stop trading at -5% daily loss
-
 
 # --------------------------------------------------
 # DISCOVERY UNIVERSE
@@ -69,15 +64,15 @@ MAX_DAILY_LOSS = -0.05  # stop trading at -5% daily loss
 # --------------------------------------------------
 
 DISCOVERY_UNIVERSE = [
-    "NVDA","AMD","AVGO","TSLA","META","AAPL","MSFT","GOOGL","AMZN","NFLX",
+    "NVDA", "AMD", "AVGO", "TSLA", "META", "AAPL", "MSFT", "GOOGL", "AMZN", "NFLX",
 
-    "SMCI","ARM","INTC","MU","QCOM","ADBE","CRM","ORCL","NOW","SHOP",
+    "SMCI", "ARM", "INTC", "MU", "QCOM", "ADBE", "CRM", "ORCL", "NOW", "SHOP",
 
-    "PLTR","COIN","MSTR","SNOW","PANW","NET","DDOG","ZS",
+    "PLTR", "COIN", "MSTR", "SNOW", "PANW", "NET", "DDOG", "ZS",
 
-    "UBER","LYFT","PYPL","ROKU",
+    "UBER", "LYFT", "PYPL", "ROKU",
 
-    "COST","WMT","HD","LOW","TGT"
+    "COST", "WMT", "HD", "LOW", "TGT"
 ]
 
 EVOLUTION_TEST_UNIVERSE = [
@@ -87,7 +82,6 @@ EVOLUTION_TEST_UNIVERSE = [
     "BTC-USD",
     "ETH-USD"
 ]
-
 
 TOP10 = [
     "AAPL",
@@ -118,13 +112,10 @@ TOP10 = [
 # --------------------------------------------------
 
 
-
 def select_research_tickers(results, limit=50):
-
     ranked = []
 
     for r in results:
-
         ticker = r.get("ticker")
 
         # use absolute move as a proxy for volatility
@@ -140,7 +131,6 @@ def select_research_tickers(results, limit=50):
 
     # if something goes wrong fallback to random selection
     if len(top) < limit:
-
         pool = [r.get("ticker") for r in results]
 
         random.shuffle(pool)
@@ -168,7 +158,6 @@ def compute_strategy_allocation(ma_sharpe, mr_sharpe, ad_sharpe):
 
 
 def load_crypto_watchlist(filename="crypto_watchlist.txt"):
-
     tickers = []
 
     try:
@@ -184,8 +173,8 @@ def load_crypto_watchlist(filename="crypto_watchlist.txt"):
 
     return tickers
 
-def load_watchlist(filename="watchlist.txt"):
 
+def load_watchlist(filename="watchlist.txt"):
     tickers = []
 
     try:
@@ -200,7 +189,6 @@ def load_watchlist(filename="watchlist.txt"):
         return []
 
     return tickers
-
 
 
 def print_market_pulse(data, symbol_data, leaders):
@@ -257,11 +245,9 @@ def print_market_pulse(data, symbol_data, leaders):
     print(f"SENTIMENT     {sentiment}")
     print(f"TOP STOCK     {top_stock_label}")
 
+
 def run_research_pipeline():
-
     print("\nRunning research pipeline")
-
-
 
     # --------------------------------------------------
     # SMART RESEARCH SCAN
@@ -301,8 +287,6 @@ def run_research_pipeline():
 
         print(f"Research candidate: {sym} {pct * 100:+.2f}%")
         selected_tickers.append(sym)
-
-
 
     # --------------------------------------------------
     # Run research scan for each momentum ticker
@@ -535,7 +519,7 @@ if __name__ == "__main__":
                 "FIL-USD",
                 "ETC-USD",
                 "XLM-USD",
-                "ARB-USD"
+                # "ARB-USD"
             ]
 
         args.scan = "crypto"
@@ -648,34 +632,32 @@ if __name__ == "__main__":
         print("AI RESEARCH DAEMON ACTIVE")
         print("==============================")
 
-        cycle = 0
+        cycle = 1
 
-        while True:
 
-            cycle += 1
 
-            print(f"\nRESEARCH CYCLE {cycle}")
-            print("---------------------")
+        print(f"\nRESEARCH CYCLE {cycle}")
+        print("---------------------")
 
-            try:
-                run_research_pipeline()
+        try:
+            run_research_pipeline()
 
-            except Exception as e:
-                print("\n⚠ RESEARCH CYCLE ERROR")
-                print(e)
+        except Exception as e:
+            print("\n⚠ RESEARCH CYCLE ERROR")
+            print(e)
 
-            if args.crypto:
-                sleep_seconds = 600
-            else:
-                sleep_seconds = 900
+        if args.crypto:
+            sleep_seconds = 600
+        else:
+            sleep_seconds = 900
 
-            next_run = datetime.now() + timedelta(seconds=sleep_seconds)
+        next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
-            print(f"\nCycle {cycle} complete.")
-            print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"Sleeping {sleep_seconds // 60} minutes...\n")
+        print(f"\nCycle {cycle} complete.")
+        print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Sleeping {sleep_seconds // 60} minutes...\n")
 
-            time.sleep(sleep_seconds)
+        time.sleep(sleep_seconds)
 
     if args.daemon:
 
@@ -694,7 +676,7 @@ if __name__ == "__main__":
             try:
 
                 print("\n==============================")
-                print("AI TRADING CYCLE START")
+                print(f"AI TRADING CYCLE {cycle}")
                 print("==============================")
 
                 if args.crypto:
@@ -706,7 +688,7 @@ if __name__ == "__main__":
                             "BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD",
                             "ADA-USD", "DOGE-USD", "AVAX-USD", "LINK-USD", "DOT-USD",
                             "LTC-USD", "ATOM-USD", "NEAR-USD", "FIL-USD", "ETC-USD",
-                            "XLM-USD", "ARB-USD"
+                            "XLM-USD",
                         ]
 
                     run_live_simulation([], crypto_universe, BOT_NAME)
@@ -718,9 +700,6 @@ if __name__ == "__main__":
 
             except Exception as e:
 
-
-
-
                 print("\n⚠ DAEMON ERROR")
                 print(e)
 
@@ -731,10 +710,10 @@ if __name__ == "__main__":
 
             next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
+            print(f"\nCycle {cycle} complete.")
             print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
             print(f"Sleeping {sleep_seconds // 60} minutes...\n")
             time.sleep(sleep_seconds)
-
 
     if args.live:
 
@@ -1042,8 +1021,6 @@ if __name__ == "__main__":
 
             strat, p1, p2 = gene
 
-
-
             try:
 
                 sharpe_scores = []
@@ -1166,10 +1143,8 @@ if __name__ == "__main__":
     except Exception as e:
         print("Strategy export failed:", e)
 
-
-
     # Strategy Darwinism
-   # SURVIVAL_THRESHOLD = 0.1
+    # SURVIVAL_THRESHOLD = 0.1
 
     # league = [s for s in league if s["score"] > SURVIVAL_THRESHOLD]
 
@@ -1543,7 +1518,6 @@ if __name__ == "__main__":
         mr_profits,
         ad_profits
     )
-
 
     # print("Displaying chart window...")
 
