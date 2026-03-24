@@ -37,6 +37,12 @@
   },
   {
     "strategy": "MA",
+    "short": 45,
+    "long": 80,
+    "sharpe": 0.49732462595489074
+  },
+  {
+    "strategy": "MA",
     "short": 25,
     "long": 90,
     "sharpe": 0.44221344753183184
@@ -49,14 +55,8 @@
   },
   {
     "strategy": "MA",
-    "short": 25,
-    "long": 80,
-    "sharpe": 0.3512403413013038
-  },
-  {
-    "strategy": "MA",
-    "short": 5,
-    "long": 30,
-    "sharpe": 0.33382483310712163
+    "short": 35,
+    "long": 90,
+    "sharpe": 0.3788426563678327
   }
 ]

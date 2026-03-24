@@ -13,11 +13,22 @@ import random
 def run_strategy_lab(args):
     print("\nRunning Strategy Lab\n")
 
-    candidate_universe = [
-        "NVDA", "SMCI", "TSLA", "AMD", "PLTR", "COIN", "META", "AMZN", "NFLX", "MSFT",
-        "AAPL", "SHOP", "ROKU", "PANW", "SNOW", "UBER", "CRM", "GOOGL", "AVGO", "DKNG",
-        "INTC", "MU", "BABA", "RIVN", "LCID", "SOFI", "AFRM", "DDOG", "NET"
-    ]
+    if args.crypto:
+
+        candidate_universe = [
+            "BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD",
+            "ADA-USD", "DOGE-USD", "AVAX-USD", "DOT-USD", "LINK-USD",
+            "LTC-USD", "ATOM-USD", "NEAR-USD", "FIL-USD",
+            "APT-USD", "ARB-USD", "OP-USD", "INJ-USD"
+        ]
+
+    else:
+
+        candidate_universe = [
+            "NVDA", "SMCI", "TSLA", "AMD", "PLTR", "COIN", "META", "AMZN", "NFLX", "MSFT",
+            "AAPL", "SHOP", "ROKU", "PANW", "SNOW", "UBER", "CRM", "GOOGL", "AVGO", "DKNG",
+            "INTC", "MU", "BABA", "RIVN", "LCID", "SOFI", "AFRM", "DDOG", "NET"
+        ]
 
     vol_scores = []
 
@@ -35,7 +46,6 @@ def run_strategy_lab(args):
 
     random.shuffle(base_universe)
 
-    random.shuffle(base_universe)
 
     if args.ticker:
         tickers = [args.ticker] + [t for t in base_universe if t != args.ticker]

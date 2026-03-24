@@ -285,7 +285,10 @@ def run_research_pipeline():
     print("\nScanning market for momentum leaders...")
 
     # Find the 100 most active stocks from the discovery universe
-    leaders = find_momentum_leaders(DISCOVERY_UNIVERSE, top_n=15)
+    if args.crypto:
+        leaders = find_momentum_leaders(crypto_universe, top_n=15)
+    else:
+        leaders = find_momentum_leaders(DISCOVERY_UNIVERSE, top_n=15)
 
     selected_tickers = []
 
@@ -320,10 +323,22 @@ def run_research_pipeline():
 
         run_scan_and_report(scan_args)
 
-    evo_args = argparse.Namespace(ticker="SPY", window=12)
+    if args.crypto:
+        base_symbol = "BTC-USD"
+    else:
+        base_symbol = "SPY"
+
+    evo_args = argparse.Namespace(ticker=base_symbol, window=12)
     run_evolution_search(evo_args)
 
-    lab_args = argparse.Namespace(ticker="SPY", window=12, top=10, report=False)
+    lab_args = argparse.Namespace(
+        ticker=base_symbol,
+        window=12,
+        top=10,
+        report=False,
+        crypto=args.crypto
+    )
+
     run_strategy_lab(lab_args)
 
     # --------------------------------------------------
@@ -650,13 +665,13 @@ if __name__ == "__main__":
                 print("\n⚠ RESEARCH CYCLE ERROR")
                 print(e)
 
-            sleep_seconds = 900
+            sleep_seconds = 600
             next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
             print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
 
             print()
-            print("Sleeping 15 minutes...\n")
+            print("Sleeping 10 minutes...\n")
 
             time.sleep(sleep_seconds)
 
@@ -848,7 +863,8 @@ if __name__ == "__main__":
                     ticker=sym,
                     window=6,
                     top=10,
-                    report=False
+                    report=False,
+                    crypto=args.crypto
                 )
             )
 
