@@ -418,65 +418,43 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
                 except Exception:
                     continue
 
-        # Fetch crypto prices individually
+
+        # Fetch crypto prices
         if crypto_universe:
 
-            if crypto_universe:
-
-                tickers = " ".join(crypto_universe)
-
-                try:
-                    crypto_data = yf.download(
-                        tickers,
-                        period="5d",
-                        interval="15m",
-                        group_by="ticker",
-                        progress=False
-                    )
-
-                    for ticker in crypto_universe:
-
-                        try:
-
-                            df = crypto_data[ticker]
-
-                            if df is None or len(df) == 0:
-                                continue
-
-                            data_cache[ticker] = df
-
-                            price = float(df["Close"].iloc[-1].item())
-
-                            if price > 0:
-                                prices[ticker] = price
-                            else:
-                                print(f"Skipping bad data: {ticker}")
-
-                        except Exception:
-                            continue
-
-                except Exception as e:
-                    print("Crypto download error:", e)
+            tickers = " ".join(crypto_universe)
 
             try:
+                crypto_data = yf.download(
+                    tickers,
+                    period="5d",
+                    interval="15m",
+                    group_by="ticker",
+                    progress=False
+                )
 
-                df = crypto_data[ticker]
+                for ticker in crypto_universe:
 
-                if df is None or len(df) == 0:
-                    continue
+                    try:
+                        df = crypto_data[ticker]
 
-                data_cache[ticker] = df
+                        if df is None or len(df) == 0:
+                            continue
 
-                price = float(df["Close"].iloc[-1])
+                        data_cache[ticker] = df
 
-                if price > 0:
-                    prices[ticker] = price
-                else:
-                    print(f"Skipping bad data: {ticker}")
+                        price = float(df["Close"].iloc[-1].item())
 
-            except Exception:
-                continue
+                        if price > 0:
+                            prices[ticker] = price
+                        else:
+                            print(f"Skipping bad data: {ticker}")
 
+                    except Exception:
+                        continue
+
+            except Exception as e:
+                print("Crypto download error:", e)
         data_ratio = len(prices) / max(1, len(all_symbols))
 
         if data_ratio < 0.7:
@@ -1746,12 +1724,16 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
         print(f"\nCycle {cycle} complete.")
 
-        # calculate next cycle time
-        sleep_seconds = 600 if crypto_universe else 300
+        # recommended sleep times
+        if crypto_universe:
+            sleep_seconds = 600  # crypto → 10 minutes
+        else:
+            sleep_seconds = 60  # equities → 1 minute
+
         next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
         print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Sleeping {sleep_seconds // 60} minutes...\n")
+        print(f"Sleeping {sleep_seconds} seconds...\n")
 
         time.sleep(sleep_seconds)
 
@@ -1762,7 +1744,7 @@ if __name__ == "__main__":
         "BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD",
         "ADA-USD", "DOGE-USD", "AVAX-USD", "DOT-USD", "LINK-USD",
         "LTC-USD", "MATIC-USD", "ATOM-USD", "FIL-USD", "NEAR-USD",
-        "APT-USD", "ARB-USD"
+        "APT-USD"
     ]
 
     run_live_simulation(
