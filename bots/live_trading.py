@@ -1720,8 +1720,8 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
 
 
-        print("\nCycle complete.\n")
-        print()
+        print("\nCycle complete.")
+
 
 
 

@@ -659,19 +659,21 @@ if __name__ == "__main__":
 
             try:
                 run_research_pipeline()
-                print("\nCycle complete.\n")
 
             except Exception as e:
                 print("\n⚠ RESEARCH CYCLE ERROR")
                 print(e)
 
-            sleep_seconds = 600
+            if args.crypto:
+                sleep_seconds = 600
+            else:
+                sleep_seconds = 900
+
             next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
+            print(f"\nCycle {cycle} complete.")
             print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
-
-            print()
-            print("Sleeping 10 minutes...\n")
+            print(f"Sleeping {sleep_seconds // 60} minutes...\n")
 
             time.sleep(sleep_seconds)
 
@@ -683,7 +685,11 @@ if __name__ == "__main__":
         print("Crypto mode:", args.crypto)
         print("Bot:", BOT_NAME)
 
+        cycle = 0
+
         while True:
+
+            cycle += 1
 
             try:
 
@@ -712,16 +718,21 @@ if __name__ == "__main__":
 
             except Exception as e:
 
+
+
+
                 print("\n⚠ DAEMON ERROR")
                 print(e)
 
-            sleep_seconds = 900
+            if args.crypto:
+                sleep_seconds = 600  # 10 minutes for crypto
+            else:
+                sleep_seconds = 900  # 15 minutes for equities
+
             next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
-            print(f"\nNext cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
-            print()
-            print("Sleeping 15 minutes...\n")
-
+            print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"Sleeping {sleep_seconds // 60} minutes...\n")
             time.sleep(sleep_seconds)
 
 
@@ -803,7 +814,7 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"Lab failed for {sym}: {e}")
 
-        print("\nCycle complete.")
+        print(f"\nCycle {cycle} complete.")
 
         exit()
 
