@@ -1733,7 +1733,9 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
         print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Sleeping {sleep_seconds} seconds...\n")
+
+        minutes = sleep_seconds // 60
+        print(f"Sleeping {minutes} minutes...\n")
 
         time.sleep(sleep_seconds)
 
