@@ -632,32 +632,34 @@ if __name__ == "__main__":
         print("AI RESEARCH DAEMON ACTIVE")
         print("==============================")
 
-        cycle = 1
+        cycle = 0
 
+        while True:
 
+            cycle += 1
 
-        print(f"\nRESEARCH CYCLE {cycle}")
-        print("---------------------")
+            print(f"\nRESEARCH CYCLE {cycle}")
+            print("---------------------")
 
-        try:
-            run_research_pipeline()
+            try:
+                run_research_pipeline()
 
-        except Exception as e:
-            print("\n⚠ RESEARCH CYCLE ERROR")
-            print(e)
+            except Exception as e:
+                print("\n⚠ RESEARCH CYCLE ERROR")
+                print(e)
 
-        if args.crypto:
-            sleep_seconds = 600
-        else:
-            sleep_seconds = 900
+            if args.crypto:
+                sleep_seconds = 600
+            else:
+                sleep_seconds = 900
 
-        next_run = datetime.now() + timedelta(seconds=sleep_seconds)
+            next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
-        print(f"\nCycle {cycle} complete.")
-        print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Sleeping {sleep_seconds // 60} minutes...\n")
+            print(f"\nCycle {cycle} complete.")
+            print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"Sleeping {sleep_seconds // 60} minutes...\n")
 
-        time.sleep(sleep_seconds)
+            time.sleep(sleep_seconds)
 
     if args.daemon:
 

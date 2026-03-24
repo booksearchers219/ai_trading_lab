@@ -515,91 +515,21 @@
     "trades": 0
   },
   {
-    "strategy": "MR",
-    "window": 25,
-    "score": 0,
-    "trades": 0
-  },
-  {
     "strategy": "MA",
-    "short": 19,
-    "long": 27,
+    "short": 14,
+    "long": 40,
     "score": 0,
     "trades": 0
   },
   {
     "strategy": "MR",
-    "window": 19,
+    "window": 14,
     "score": 0,
     "trades": 0
   },
   {
     "strategy": "MR",
     "window": 25,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MA",
-    "short": 15,
-    "long": 42,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MR",
-    "window": 19,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MR",
-    "window": 25,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MR",
-    "window": 15,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MA",
-    "short": 11,
-    "long": 48,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MR",
-    "window": 25,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MR",
-    "window": 25,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MA",
-    "short": 11,
-    "long": 42,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MR",
-    "window": 22,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MA",
-    "short": 15,
-    "long": 42,
     "score": 0,
     "trades": 0
   },
@@ -611,40 +541,14 @@
   },
   {
     "strategy": "MA",
-    "short": 19,
-    "long": 27,
+    "short": 13,
+    "long": 44,
     "score": 0,
     "trades": 0
   },
   {
     "strategy": "MA",
-    "short": 10,
-    "long": 21,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MA",
-    "short": 19,
-    "long": 27,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MR",
-    "window": 22,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MR",
-    "window": 22,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MA",
-    "short": 14,
+    "short": 13,
     "long": 40,
     "score": 0,
     "trades": 0
@@ -656,8 +560,123 @@
     "trades": 0
   },
   {
+    "strategy": "MA",
+    "short": 15,
+    "long": 42,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MR",
+    "window": 13,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MR",
+    "window": 19,
+    "score": 0,
+    "trades": 0
+  },
+  {
     "strategy": "MR",
     "window": 26,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MR",
+    "window": 22,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MR",
+    "window": 14,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MA",
+    "short": 4,
+    "long": 38,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MR",
+    "window": 24,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MA",
+    "short": 21,
+    "long": 29,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MA",
+    "short": 6,
+    "long": 14,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MR",
+    "window": 26,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MR",
+    "window": 15,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MA",
+    "short": 15,
+    "long": 33,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MR",
+    "window": 25,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MR",
+    "window": 14,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MR",
+    "window": 14,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MA",
+    "short": 14,
+    "long": 44,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MA",
+    "short": 2,
+    "long": 36,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MR",
+    "window": 14,
     "score": 0,
     "trades": 0
   },
@@ -675,59 +694,51 @@
   },
   {
     "strategy": "MR",
-    "window": 24,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MR",
     "window": 25,
     "score": 0,
     "trades": 0
   },
   {
-    "strategy": "MA",
-    "short": 19,
-    "long": 29,
+    "strategy": "MR",
+    "window": 22,
     "score": 0,
     "trades": 0
   },
   {
     "strategy": "MR",
-    "window": 25,
+    "window": 19,
     "score": 0,
     "trades": 0
   },
   {
     "strategy": "MA",
-    "short": 20,
-    "long": 28,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MA",
-    "short": 15,
+    "short": 9,
     "long": 44,
     "score": 0,
     "trades": 0
   },
   {
     "strategy": "MR",
-    "window": 26,
+    "window": 14,
     "score": 0,
     "trades": 0
   },
   {
     "strategy": "MA",
     "short": 15,
-    "long": 47,
+    "long": 40,
     "score": 0,
     "trades": 0
   },
   {
     "strategy": "MR",
-    "window": 6,
+    "window": 25,
+    "score": 0,
+    "trades": 0
+  },
+  {
+    "strategy": "MR",
+    "window": 25,
     "score": 0,
     "trades": 0
   },
@@ -739,15 +750,8 @@
     "trades": 0
   },
   {
-    "strategy": "MA",
-    "short": 20,
-    "long": 29,
-    "score": 0,
-    "trades": 0
-  },
-  {
     "strategy": "MR",
-    "window": 25,
+    "window": 19,
     "score": 0,
     "trades": 0
   },
@@ -759,13 +763,7 @@
   },
   {
     "strategy": "MR",
-    "window": 22,
-    "score": 0,
-    "trades": 0
-  },
-  {
-    "strategy": "MR",
-    "window": 22,
+    "window": 26,
     "score": 0,
     "trades": 0
   }

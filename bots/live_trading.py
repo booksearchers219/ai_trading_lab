@@ -465,7 +465,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             print("Skipping cycle to avoid bad trades\n")
 
             time.sleep(60)
-            return
+            continue
 
         current_time = time.time()
 
