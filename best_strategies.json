@@ -25,6 +25,12 @@
   },
   {
     "strategy": "MA",
+    "short": 16,
+    "long": 51,
+    "sharpe": 1.2947948987915918
+  },
+  {
+    "strategy": "MA",
     "short": 5,
     "long": 110,
     "sharpe": 0.6679925878426339
@@ -42,21 +48,15 @@
     "sharpe": 0.6666574343937406
   },
   {
-    "strategy": "MA",
-    "short": 20,
-    "long": 50,
-    "sharpe": 0.5988336193241666
+    "strategy": "MR",
+    "short": 26,
+    "long": null,
+    "sharpe": 0.6494777780808795
   },
   {
-    "strategy": "MA",
-    "short": 45,
-    "long": 80,
-    "sharpe": 0.4973246259548911
-  },
-  {
-    "strategy": "MA",
-    "short": 25,
-    "long": 90,
-    "sharpe": 0.44221344753183184
+    "strategy": "MR",
+    "short": 10,
+    "long": null,
+    "sharpe": 0.6494777780808795
   }
 ]
