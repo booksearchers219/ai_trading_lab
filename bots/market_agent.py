@@ -23,7 +23,14 @@ from engines.scan_engine import run_scan_and_report
 from core.volatility_regime import detect_volatility_regime
 from bots.live_trading import run_live_simulation
 from core.strategy_league import load_league, update_scores, save_league
-from core.strategies import *
+from core.strategies import (
+    analyze_market,
+    mean_reversion_strategy,
+    adaptive_strategy,
+    volatility_breakout_strategy,
+    voting_strategy,
+    council_strategy,
+)
 
 from core.signal_engine import generate_signals
 
@@ -795,7 +802,7 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"Lab failed for {sym}: {e}")
 
-        print(f"\nCycle {cycle} complete.")
+        print("\nCycle complete.")
 
         exit()
 
@@ -863,10 +870,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Lab failed for {sym}: {e}")
 
-    if args.crypto:
-        data = list(symbol_data.values())[0]
-    else:
-        data = symbol_data["SPY"]
+    data = get_recent_data(ticker, months)
 
     print_trend_panel(symbol_data)
     print_market_breadth(symbol_data)
@@ -1051,17 +1055,7 @@ if __name__ == "__main__":
                                 volatility_breakout_strategy
                             )
 
-                        elif strat == "RSI":
-                            equity, final, *_ = run_backtest(
-                                test_data,
-                                lambda d: rsi_strategy(d, p1, p2)
-                            )
 
-                        elif strat == "MOM":
-                            equity, final, *_ = run_backtest(
-                                test_data,
-                                lambda d: momentum_strategy(d, p1)
-                            )
 
                         sharpe_scores.append(calculate_sharpe(equity))
 
@@ -1207,9 +1201,9 @@ if __name__ == "__main__":
     )
 
     if args.crypto:
-        best_strategies = load_best_strategies(50)
+        best_strategies = load_best_strategies(50) or []
     else:
-        best_strategies = load_best_strategies(10)
+        best_strategies = load_best_strategies(10) or []
 
     trend_strategies = best_strategies[:5]
     sideways_strategies = best_strategies[5:10]
