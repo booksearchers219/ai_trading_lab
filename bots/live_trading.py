@@ -1494,10 +1494,10 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             high_prices.pop(ticker, None)
 
-    if not prices:
-        print("\nNo market data this cycle.")
-        time.sleep(300)
-        continue
+            if not prices:
+                print("\nNo market data this cycle.")
+                time.sleep(300)
+                continue
 
     portfolio_value = portfolio.total_value(prices)
 
