@@ -85,19 +85,20 @@ def generate_equity_chart(BOT_NAME="default_bot"):
     plt.tight_layout()
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-    output_dir = os.path.join(BASE_DIR, "reports", "live_performance")
-    os.makedirs(output_dir, exist_ok=True)
-
     timestamp = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    filename = os.path.join(output_dir, f"{BOT_NAME}_equity_{timestamp}.png")
+    # 🔥 create bot-specific folder
+    output_dir = os.path.join(BASE_DIR, "reports", "live_performance", BOT_NAME)
+    os.makedirs(output_dir, exist_ok=True)
+
+    filename = os.path.join(output_dir, f"{BOT_NAME}_performance_{timestamp}.png")
 
     print("DEBUG saving chart to:", filename)
 
     plt.savefig(filename)
 
     # save latest snapshot per bot
-    plt.savefig(f"chart_{BOT_NAME}.png")
+    plt.savefig(os.path.join(output_dir, f"{BOT_NAME}_latest.png"))
 
     plt.close()
 
