@@ -696,8 +696,9 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
                 vol = returns.std() * 100
 
-                if vol < MIN_VOLATILITY:
-                    continue
+                # TEMP disable volatility filter
+                # if vol < MIN_VOLATILITY:
+                #     continue
 
                 volatility_data.append((ticker, vol))
 
