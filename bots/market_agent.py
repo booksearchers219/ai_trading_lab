@@ -371,7 +371,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--strategy_name", default="adaptive")
 
-    parser.add_argument("--ticker", type=str, default="SPY",
+    parser.add_argument("--ticker", type=str, default=None,
                         help="Stock ticker to analyze")
 
     parser.add_argument("--window", type=int, default=6,
@@ -459,6 +459,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     crypto_mode = args.crypto
+
+    if args.crypto and not args.ticker:
+        args.ticker = "BTC-USD"
 
     BOT_NAME = "crypto_bot" if crypto_mode else "equity_bot"
 
@@ -602,9 +605,7 @@ if __name__ == "__main__":
 
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-        ticker = "market"
-        if hasattr(args, "ticker"):
-            ticker = args.ticker
+        ticker = args.ticker if args.ticker else ("BTC-USD" if args.crypto else "SPY")
 
         logfile = f"logs/{BOT_NAME}_{ticker}_{timestamp}.log"
 
@@ -1202,11 +1203,11 @@ if __name__ == "__main__":
         lambda d: voting_strategy(d, vote_state)
     )
 
+
     if args.crypto:
-        if args.crypto:
-            best_strategies = load_best_strategies("crypto_bot", 50) or []
-        else:
-            best_strategies = load_best_strategies("equity_bot", 10) or []
+        best_strategies = load_best_strategies("crypto_bot", 50) or []
+    else:
+        best_strategies = load_best_strategies("equity_bot", 10) or []
 
     trend_strategies = best_strategies[:5]
     sideways_strategies = best_strategies[5:10]
