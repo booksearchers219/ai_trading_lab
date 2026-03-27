@@ -60,10 +60,10 @@ def generate_signals(prices, data_cache, adaptive_state):
         vote_strength = buy_votes - sell_votes
 
 
-        if buy_votes >= 2 and not downtrend:
+        if buy_votes >= 1:
             signal_list.append(("COUNCIL", "BUY", ticker, vote_strength))
 
-        elif sell_votes >= 2:
+        elif sell_votes >= 1:
             signal_list.append(("COUNCIL", "SELL", ticker, vote_strength))
 
 
