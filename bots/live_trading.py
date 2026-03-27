@@ -1430,7 +1430,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
 
                             position_scores.pop(weakest, None)
 
-                print(f"{strat} BUY {shares} {ticker} @ {round(price, 2)}")
+                round(price, 6)
 
                 reason = " ".join([f"{k}={v}" for k, v in vote_details.items()])
                 print(f"Reason: {reason} ({vote_strength} votes)")
@@ -1568,8 +1568,8 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
 
                 print(
                     f"{ticker:<5} {qty:>4} "
-                    f"entry:{entry_price:.2f} "
-                    f"now:{current_price:.2f} "
+                    f"entry:{entry_price:.2f}" if entry_price > 1 else f"entry:{entry_price:.6f}"
+                    f"now:{current_price:.6f} "
                     f"value:${position_value:,.2f} "
                     f"P/L:{pnl_str}"
                 )
