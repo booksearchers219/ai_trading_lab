@@ -494,7 +494,13 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
             if p is None or not isinstance(p, (int, float)) or math.isnan(p):
                 cell = f"{t}:data"
             else:
-                cell = f"{t}:{p:.2f}"
+                if p < 1:
+                    cell = f"{t}:{p:.6f}"
+                else:
+                    if p < 1:
+                        cell = f"{t}:{p:.6f}"
+                    else:
+                        cell = f"{t}:{p:.2f}"
 
             row += f"{cell:<18}"
 
@@ -857,7 +863,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
             combined_signal = "HOLD"
             vote_strength = 0
 
-            if buy_votes >= .8:
+            if buy_votes >= 0.5:
                 combined_signal = "BUY"
                 vote_strength = buy_votes
 
