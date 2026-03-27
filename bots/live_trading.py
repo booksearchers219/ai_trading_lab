@@ -323,8 +323,6 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             print("Strategy load error:", e)
             best_strategies = []
 
-
-
         print("========== AI TRADING LAB ==========")
         print(f"BOT: {BOT_NAME}")
 
@@ -419,7 +417,6 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
                 except Exception:
                     continue
-
 
         # Fetch crypto prices
         if crypto_universe:
@@ -794,17 +791,21 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             if regime == "TRENDING":
 
+                # MA strategy
                 if ma_strats:
                     best = ma_strats[0]
                     short = best.get("short")
                     long = best.get("long")
-
                     signals["MA"] = analyze_market(data, short, long)
-
                 else:
                     signals["MA"] = analyze_market(data)
 
+                # AD strategy
                 signals["AD"] = adaptive_strategy(data, adaptive_state)
+
+                # ✅ ADD THIS (THIS IS THE FIX)
+                if mr_strats:
+                    signals["MR"] = mean_reversion_strategy(data)
 
 
             elif regime == "SIDEWAYS":
@@ -913,8 +914,9 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
         active_keys = {(ticker, signal) for _, signal, ticker, _, _, _ in signal_list}
 
         for key in list(signal_history.keys()):
+            # allow signals to persist across minor changes
             if key not in active_keys:
-                signal_history.pop(key)
+                signal_history[key] = max(0, signal_history.get(key, 0) - 1)
 
         print("\nREGIMES")
         print("-------")
@@ -1175,569 +1177,570 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
             persistence = signal_history[key]
             vote_strength = vote_strength + (persistence * 0.25)
 
-            if signal_history[key] >= SIGNAL_CONFIRM_CYCLES:
-                confirmed_signals.append((strat, signal, ticker, vote_strength, vote_details, vote_strength))
-            else:
-                pending_signals.append((strat, signal, ticker, vote_strength, vote_details))
-
-        print("\nPENDING SIGNALS")
-        print("----------------")
-
-        if not pending_signals:
-            print("None")
-
-        for strat, signal, ticker, vote_strength, _ in pending_signals:
-            count = signal_history.get((ticker, signal), 0)
-            print(f"{ticker:<6} {signal:<4} votes:{vote_strength} confirm:{count}/{SIGNAL_CONFIRM_CYCLES}")
-
-        print("\nCONFIRMED SIGNALS")
-        print("-----------------")
-
-        if not confirmed_signals:
-            print("None")
-
-        # Rank signals by strength
-        confirmed_signals.sort(key=lambda x: x[3], reverse=True)
-        confirmed_signals = confirmed_signals[:MAX_NEW_TRADES_PER_CYCLE]
-
-        for strat, signal, ticker, vote_strength, vote_details, _ in confirmed_signals:
-            print(f"{ticker:<6} {signal:<4} votes:{vote_strength}")
-
-        print("\nTOP OPPORTUNITIES")
-        print("-----------------")
-
-        opportunities = []
-        best_opportunity = None
-        best_score = 0
-
-        for strat, signal, ticker, vote_strength, vote_details, score in confirmed_signals:
-            if signal == "BUY":
-                opportunities.append((ticker, score))
-
-        opportunities.sort(key=lambda x: x[1], reverse=True)
-
-        if not opportunities:
-            print("None")
+            # TEMP: immediate confirmation
+            confirmed_signals.append((strat, signal, ticker, vote_strength, vote_details, vote_strength))
+            confirmed_signals.append((strat, signal, ticker, vote_strength, vote_details, vote_strength))
         else:
-            for ticker, score in opportunities[:5]:
-                print(f"{ticker:<6} score:{score}")
+            pending_signals.append((strat, signal, ticker, vote_strength, vote_details))
 
-                if score > best_score:
-                    best_score = score
-                    best_opportunity = ticker
+    print("\nPENDING SIGNALS")
+    print("----------------")
 
-        # Rank signals by strength
-        confirmed_signals.sort(key=lambda x: x[3], reverse=True)
+    if not pending_signals:
+        print("None")
 
-        for strat, signal, ticker, vote_strength, vote_details, _ in confirmed_signals:
-            print(f"{ticker:<6} {signal:<4} votes:{vote_strength}")
+    for strat, signal, ticker, vote_strength, _ in pending_signals:
+        count = signal_history.get((ticker, signal), 0)
+        print(f"{ticker:<6} {signal:<4} votes:{vote_strength} confirm:{count}/{SIGNAL_CONFIRM_CYCLES}")
 
-        print("\nCOOLDOWN")
-        print("--------")
+    print("\nCONFIRMED SIGNALS")
+    print("-----------------")
 
-        cooling = False
+    if not confirmed_signals:
+        print("None")
 
-        for ticker, ts in cooldowns.items():
+    # Rank signals by strength
+    confirmed_signals.sort(key=lambda x: x[3], reverse=True)
+    confirmed_signals = confirmed_signals[:MAX_NEW_TRADES_PER_CYCLE]
 
-            remaining = int(COOLDOWN_SECONDS - (time.time() - ts))
+    for strat, signal, ticker, vote_strength, vote_details, _ in confirmed_signals:
+        print(f"{ticker:<6} {signal:<4} votes:{vote_strength}")
 
-            if remaining > 0:
-                cooling = True
-                print(f"{ticker:<6} {remaining}s")
+    print("\nTOP OPPORTUNITIES")
+    print("-----------------")
 
-        if not cooling:
-            print("None")
+    opportunities = []
+    best_opportunity = None
+    best_score = 0
 
-        for strat, signal, ticker, vote_strength, *_ in confirmed_signals:
+    for strat, signal, ticker, vote_strength, vote_details, score in confirmed_signals:
+        if signal == "BUY":
+            opportunities.append((ticker, score))
 
-            if not trade_allowed:
-                trade_filters.append(f"{ticker}: market quality filter")
+    opportunities.sort(key=lambda x: x[1], reverse=True)
+
+    if not opportunities:
+        print("None")
+    else:
+        for ticker, score in opportunities[:5]:
+            print(f"{ticker:<6} score:{score}")
+
+            if score > best_score:
+                best_score = score
+                best_opportunity = ticker
+
+    # Rank signals by strength
+    confirmed_signals.sort(key=lambda x: x[3], reverse=True)
+
+    for strat, signal, ticker, vote_strength, vote_details, _ in confirmed_signals:
+        print(f"{ticker:<6} {signal:<4} votes:{vote_strength}")
+
+    print("\nCOOLDOWN")
+    print("--------")
+
+    cooling = False
+
+    for ticker, ts in cooldowns.items():
+
+        remaining = int(COOLDOWN_SECONDS - (time.time() - ts))
+
+        if remaining > 0:
+            cooling = True
+            print(f"{ticker:<6} {remaining}s")
+
+    if not cooling:
+        print("None")
+
+    for strat, signal, ticker, vote_strength, *_ in confirmed_signals:
+
+        if not trade_allowed:
+            trade_filters.append(f"{ticker}: market quality filter")
+            continue
+
+        now = time.time()
+
+        if ticker in cooldowns:
+            if now - cooldowns[ticker] < COOLDOWN_SECONDS:
+                trade_filters.append(f"{ticker}: cooldown")
                 continue
 
-            now = time.time()
+        price = prices.get(ticker)
 
-            if ticker in cooldowns:
-                if now - cooldowns[ticker] < COOLDOWN_SECONDS:
-                    trade_filters.append(f"{ticker}: cooldown")
-                    continue
+        if price is None or price != price:
+            continue
 
-            price = prices.get(ticker)
+        held = portfolio.positions.get(ticker, 0)
 
-            if price is None or price != price:
-                continue
+        if ticker in portfolio.positions:
+            prev_high = high_prices.get(ticker, price)
+            high_prices[ticker] = max(prev_high, price)
 
-            held = portfolio.positions.get(ticker, 0)
+        if held > 0:
 
-            if ticker in portfolio.positions:
-                prev_high = high_prices.get(ticker, price)
-                high_prices[ticker] = max(prev_high, price)
+            high_price = high_prices.get(ticker, price)
+            trailing_stop = high_price * (1 - TRAILING_STOP_PCT)
 
-            if held > 0:
-
-                high_price = high_prices.get(ticker, price)
-                trailing_stop = high_price * (1 - TRAILING_STOP_PCT)
-
-                if price <= trailing_stop:
-                    print(f"TRAILING STOP triggered for {ticker}")
-                    portfolio.sell(ticker, price, held)
-
-                    log_trade(
-                        ticker,
-                        "SELL",
-                        held,
-                        price,
-                        "TRAIL",
-                        portfolio.cash,
-                        portfolio.total_value(prices)
-                    )
-
-                    cooldowns[ticker] = time.time()
-                    high_prices.pop(ticker, None)
-                    continue
-
-            if held > 0:
-
-                entry_price = portfolio.entry_prices.get(ticker, price)
-                stop_price = entry_price * (1 - STOP_LOSS_PCT)
-
-                if price <= stop_price:
-                    print(f"STOP LOSS triggered for {ticker}")
-
-                    portfolio.sell(ticker, price, held)
-
-                    log_trade(
-                        ticker,
-                        "SELL",
-                        held,
-                        price,
-                        "STOP",
-                        portfolio.cash,
-                        portfolio.total_value(prices)
-                    )
-
-                    cooldowns[ticker] = time.time()
-                    high_prices.pop(ticker, None)
-                    continue
-
-            portfolio_value = portfolio.total_value(prices)
-
-            current_position = portfolio.positions.get(ticker, 0)
-            current_value = current_position * price
-
-            max_allowed = portfolio_value * MAX_TICKER_ALLOCATION
-
-            confidence = min(1.0, vote_strength / 3)
-
-            if market_regime == "SIDEWAYS":
-                risk_multiplier = 0.7
-            elif market_regime == "TRENDING":
-                risk_multiplier = 1.0
-            else:
-                risk_multiplier = 0.5
-
-            # --- Volatility-adjusted position sizing ---
-
-            data = data_cache.get(ticker)
-
-            if data is None:
-                continue
-
-            returns = data["Close"].pct_change().replace([float("inf"), -float("inf")], 0).dropna()
-            volatility = returns.std()
-            volatility = max(0.005, min(volatility, 0.10))
-
-            vol_adjustment = max(0.5, min(2.0, 0.02 / volatility))
-
-            risk_amount = portfolio_value * MAX_RISK_PER_TRADE * confidence * risk_multiplier
-
-            adjusted_risk = risk_amount * vol_adjustment
-
-            shares = adjusted_risk / price
-
-            print("DEBUG position:", ticker, "risk", adjusted_risk, "price", price, "shares", shares)
-
-            max_shares = (portfolio_value * MAX_TICKER_ALLOCATION) / price
-
-            if crypto_universe:
-                shares = min(shares, max_shares)  # fractional crypto
-            else:
-                shares = min(shares, int(max_shares))  # integer stocks
-
-            if crash_detected and signal == "BUY":
-                trade_filters.append(f"{ticker}: crash protection")
-                continue
-
-            if signal == "BUY" and shares == 0:
-                trade_filters.append(f"{ticker}: position size too small")
-                continue
-
-            open_positions = len(portfolio.positions)
-
-            if signal == "BUY" and open_positions >= max_positions:
-                trade_filters.append(f"{ticker}: portfolio full - checking rotation")
-
-            if (
-                    signal == "BUY"
-                    and shares > 0
-                    and held == 0
-                    and current_value < max_allowed
-                    and (
-                    open_positions < max_positions
-                    or (
-                            open_positions >= max_positions
-                            and position_scores
-                            and vote_strength > min(position_scores.values())
-                    )
-            )
-            ):
-
-                # Rotate weakest position if portfolio full
-                if open_positions >= max_positions:
-
-                    weakest = min(position_scores, key=position_scores.get)
-                    weakest_score = position_scores[weakest]
-
-                    if vote_strength > weakest_score:
-
-                        qty = portfolio.positions.get(weakest, 0)
-                        w_price = prices.get(weakest)
-
-                        if qty > 0 and w_price:
-                            print(f"ROTATING OUT {weakest}")
-
-                            portfolio.sell(weakest, w_price, qty)
-
-                            log_trade(
-                                weakest,
-                                "SELL",
-                                qty,
-                                w_price,
-                                "ROTATE",
-                                portfolio.cash,
-                                portfolio.total_value(prices)
-                            )
-
-                            position_scores.pop(weakest, None)
-
-                print(f"{strat} BUY {shares} {ticker} @ {round(price, 2)}")
-
-                reason = " ".join([f"{k}={v}" for k, v in vote_details.items()])
-                print(f"Reason: {reason} ({vote_strength} votes)")
-
-                portfolio.buy(ticker, price, shares)
-
-                position_scores[ticker] = vote_strength
-
-                high_prices[ticker] = price
-
-                log_trade(
-                    ticker,
-                    "BUY",
-                    shares,
-                    price,
-                    "COUNCIL",
-                    portfolio.cash,
-                    portfolio.total_value(prices)
-                )
-
-                generate_trade_chart(ticker)
-
-                cooldowns[ticker] = time.time()
-
-
-            elif signal == "SELL" and held > 0:
-
-                print(f"{strat} SELL {held} {ticker}")
-
-                reason = " ".join([f"{k}={v}" for k, v in vote_details.items()])
-                print(f"Reason: {reason} ({vote_strength} votes)")
-
-                entry = portfolio.entry_prices.get(ticker, price)
-
+            if price <= trailing_stop:
+                print(f"TRAILING STOP triggered for {ticker}")
                 portfolio.sell(ticker, price, held)
-
-                # --- strategy learning memory ---
-                pnl = (price - entry) * held
-
-                for strategy_name, vote in vote_details.items():
-
-                    if strategy_name in strategy_memory:
-
-                        strategy_memory[strategy_name]["pnl"] += pnl
-                        strategy_memory[strategy_name]["trades"] += 1
-
-                        for s in league:
-                            if s["strategy"] == strategy_name:
-                                s["score"] += pnl
-                                s["trades"] += 1
-
-                save_strategy_memory(strategy_memory)
-
-                # --------------------------------
-
-                position_scores.pop(ticker, None)
 
                 log_trade(
                     ticker,
                     "SELL",
                     held,
                     price,
-                    "COUNCIL",
+                    "TRAIL",
                     portfolio.cash,
                     portfolio.total_value(prices)
                 )
 
                 cooldowns[ticker] = time.time()
-
                 high_prices.pop(ticker, None)
+                continue
 
-        if not prices:
-            print("\nNo market data this cycle.")
-            time.sleep(300)
-            continue
+        if held > 0:
 
-        portfolio_value = portfolio.total_value(prices)
+            entry_price = portfolio.entry_prices.get(ticker, price)
+            stop_price = entry_price * (1 - STOP_LOSS_PCT)
 
-        today_pl = portfolio_value - starting_equity
-        today_pct = (today_pl / starting_equity) * 100
+            if price <= stop_price:
+                print(f"STOP LOSS triggered for {ticker}")
 
-        pl_str = f"+${today_pl:,.2f}" if today_pl >= 0 else f"-${abs(today_pl):,.2f}"
-        pct_str = f"+{today_pct:.2f}%" if today_pct >= 0 else f"{today_pct:.2f}%"
+                portfolio.sell(ticker, price, held)
 
-        print("\nTRADE FILTERS")
-        print("-------------")
-
-        if trade_filters:
-            for f in trade_filters[:10]:
-                print(f)
-        else:
-            print("None")
-
-        print("\nPORTFOLIO")
-        print("---------")
-
-        # Portfolio intelligence tracking
-        weakest_position = None
-        weakest_score = None
-
-        if position_scores:
-            weakest_position = min(position_scores, key=position_scores.get)
-            weakest_score = position_scores[weakest_position]
-
-        print(f"Value: ${portfolio_value:,.2f}")
-        print(f"TODAY P/L: {pl_str} ({pct_str})")
-
-        positions_value = portfolio_value - portfolio.cash
-        exposure = (positions_value / portfolio_value) * 100 if portfolio_value > 0 else 0
-
-        print(f"Cash: ${portfolio.cash:,.2f}")
-        print(f"Positions Value: ${positions_value:,.2f}")
-        print(f"Exposure: {exposure:.2f}%")
-
-        if portfolio.positions:
-
-            print("\nPOSITIONS")
-            print("---------")
-
-            total_pnl = 0
-
-            for ticker, qty in portfolio.positions.items():
-                entry_price = portfolio.entry_prices.get(ticker, 0)
-                current_price = prices.get(ticker)
-
-                if current_price is None:
-                    continue
-
-                pnl = (current_price - entry_price) * qty
-                total_pnl += pnl
-
-                pnl_str = f"+${pnl:,.2f}" if pnl >= 0 else f"-${abs(pnl):,.2f}"
-
-                position_value = current_price * qty
-
-                print(
-                    f"{ticker:<5} {qty:>4} "
-                    f"entry:{entry_price:.2f} "
-                    f"now:{current_price:.2f} "
-                    f"value:${position_value:,.2f} "
-                    f"P/L:{pnl_str}"
+                log_trade(
+                    ticker,
+                    "SELL",
+                    held,
+                    price,
+                    "STOP",
+                    portfolio.cash,
+                    portfolio.total_value(prices)
                 )
 
-            print(f"\nUnrealized P/L: ${total_pnl:,.2f}")
-
-            print("\nRECENT TRADES")
-            print("-------------")
-
-            recent_trades = portfolio.trade_log[-5:]  # show last 5 trades
-
-            if not recent_trades:
-                print("None")
-            else:
-                for trade in recent_trades:
-                    action = trade["action"]
-                    ticker = trade["ticker"]
-                    price = trade["price"]
-                    shares = trade["shares"]
-
-                    print(f"{action:<4} {ticker:<5} {shares} @ {price:.2f}")
-
-        else:
-            print("No open positions")
-
-        print("\nPORTFOLIO INTELLIGENCE")
-        print("----------------------")
-
-        if weakest_position:
-            print(f"Weakest Position : {weakest_position} (score {weakest_score})")
-        else:
-            print("Weakest Position : None")
-
-        if best_opportunity:
-            print(f"Top Opportunity  : {best_opportunity} (score {best_score})")
-        else:
-            print("Top Opportunity  : None")
-
-        if weakest_position and best_opportunity and best_score > weakest_score:
-            print("Rotation Signal  : YES")
-        else:
-            print("Rotation Signal  : NO")
+                cooldowns[ticker] = time.time()
+                high_prices.pop(ticker, None)
+                continue
 
         portfolio_value = portfolio.total_value(prices)
 
-        log_equity({
-            "MA": portfolio_value,
-            "MR": portfolio_value,
-            "AD": portfolio_value
-        }, BOT_NAME)
+        current_position = portfolio.positions.get(ticker, 0)
+        current_value = current_position * price
 
-        strategy_equity["MA"] = portfolio_value
-        strategy_equity["MR"] = portfolio_value
-        strategy_equity["AD"] = portfolio_value
+        max_allowed = portfolio_value * MAX_TICKER_ALLOCATION
 
-        # Strategy learning allocation
-        for strat, stats in strategy_memory.items():
+        confidence = min(1.0, vote_strength / 3)
 
-            trades = stats["trades"]
-            pnl = stats["pnl"]
-
-            if trades == 0:
-                score = 1
-            else:
-                score = pnl / trades
-
-            strategy_weights[strat] = max(0.5, min(2.5, 1 + score / 100))
-
-        print("\nSTRATEGY LEADERBOARD")
-        print("--------------------")
-
-        leader_row = ""
-
-        for strat, equity in strategy_equity.items():
-            leader_row += f"{strat}:${equity:,.2f}   "
-
-        print(leader_row)
-
-        print("\nSTRATEGY PERFORMANCE")
-        print("--------------------")
-
-        perf_row = ""
-
-        for strat, equity in strategy_equity.items():
-            pnl = equity - starting_equity
-            pnl_pct = (pnl / starting_equity) * 100
-
-            pnl_str = f"+{pnl_pct:.2f}%" if pnl_pct >= 0 else f"{pnl_pct:.2f}%"
-
-            perf_row += f"{strat}:{pnl_str}   "
-
-        print(perf_row)
-
-        cycle_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        print("\nCYCLE SUMMARY")
-        print("-------------")
-        print(f"Time: {cycle_time}")
-        print(f"Portfolio Value: ${portfolio_value:,.2f}")
-        print(f"Open Positions: {len(portfolio.positions)}")
-        print(f"Confirmed Signals: {len(confirmed_signals)}")
-
-        filename = generate_equity_chart(BOT_NAME)
-
-        if filename:
-            print("\nEquity report saved:")
-            print(os.path.abspath(filename))
+        if market_regime == "SIDEWAYS":
+            risk_multiplier = 0.7
+        elif market_regime == "TRENDING":
+            risk_multiplier = 1.0
         else:
-            print("\nEquity chart not created yet.")
+            risk_multiplier = 0.5
 
-        save_state({
-            "cash": portfolio.cash,
-            "positions": portfolio.positions,
-            "entry_prices": portfolio.entry_prices
-        }, BOT_NAME)
+        # --- Volatility-adjusted position sizing ---
 
-        # -----------------------------
-        # STRATEGY EVOLUTION (PART 7)
-        # -----------------------------
+        data = data_cache.get(ticker)
 
-        league = sorted(league, key=lambda x: x["score"], reverse=True)
+        if data is None:
+            continue
 
-        # keep best performers
-        league = league[:80]
+        returns = data["Close"].pct_change().replace([float("inf"), -float("inf")], 0).dropna()
+        volatility = returns.std()
+        volatility = max(0.005, min(volatility, 0.10))
 
-        for s in league:
-            s["score"] = 0
-            s["trades"] = 0
+        vol_adjustment = max(0.5, min(2.0, 0.02 / volatility))
 
-        # mutate winners
-        while len(league) < 120:
+        risk_amount = portfolio_value * MAX_RISK_PER_TRADE * confidence * risk_multiplier
 
-            parent = random.choice(league[:min(10, len(league))])
+        adjusted_risk = risk_amount * vol_adjustment
 
-            # 20% chance of totally new strategy
-            if random.random() < 0.2:
-                child = generate_random_strategy()
-            else:
-                child = parent.copy()
+        shares = adjusted_risk / price
 
-                if child.get("strategy") == "MA":
-                    child["short"] = max(2, child["short"] + random.choice([-1, 0, 1]))
-                    child["long"] = max(child["short"] + 8, child["long"] + random.choice([-2, 0, 2]))
+        print("DEBUG position:", ticker, "risk", adjusted_risk, "price", price, "shares", shares)
 
-            child["score"] = 0
-            child["trades"] = 0
+        max_shares = (portfolio_value * MAX_TICKER_ALLOCATION) / price
 
-            league.append(child)
-
-        save_league(league)
-
-        print("Strategy league evolved:", len(league), "strategies")
-
-        print()
-
-        print("\nTOP AI STRATEGIES")
-        print("-----------------")
-
-        top = sorted(league, key=lambda x: x["score"], reverse=True)[:5]
-
-        for s in top:
-            print(s)
-
-        print(f"\nCycle {cycle} complete.")
-
-        # recommended sleep times
         if crypto_universe:
-            sleep_seconds = 600  # crypto → 10 minutes
+            shares = min(shares, max_shares)  # fractional crypto
         else:
-            sleep_seconds = 60  # equities → 1 minute
+            shares = min(shares, int(max_shares))  # integer stocks
 
-        next_run = datetime.now() + timedelta(seconds=sleep_seconds)
+        if crash_detected and signal == "BUY":
+            trade_filters.append(f"{ticker}: crash protection")
+            continue
 
-        print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+        if signal == "BUY" and shares == 0:
+            trade_filters.append(f"{ticker}: position size too small")
+            continue
 
-        minutes = sleep_seconds // 60
-        print(f"Sleeping {minutes} minutes...\n")
+        open_positions = len(portfolio.positions)
 
-        time.sleep(sleep_seconds)
+        if signal == "BUY" and open_positions >= max_positions:
+            trade_filters.append(f"{ticker}: portfolio full - checking rotation")
+
+        if (
+                signal == "BUY"
+                and shares > 0
+                and held == 0
+                and current_value < max_allowed
+                and (
+                open_positions < max_positions
+                or (
+                        open_positions >= max_positions
+                        and position_scores
+                        and vote_strength > min(position_scores.values())
+                )
+        )
+        ):
+
+            # Rotate weakest position if portfolio full
+            if open_positions >= max_positions:
+
+                weakest = min(position_scores, key=position_scores.get)
+                weakest_score = position_scores[weakest]
+
+                if vote_strength > weakest_score:
+
+                    qty = portfolio.positions.get(weakest, 0)
+                    w_price = prices.get(weakest)
+
+                    if qty > 0 and w_price:
+                        print(f"ROTATING OUT {weakest}")
+
+                        portfolio.sell(weakest, w_price, qty)
+
+                        log_trade(
+                            weakest,
+                            "SELL",
+                            qty,
+                            w_price,
+                            "ROTATE",
+                            portfolio.cash,
+                            portfolio.total_value(prices)
+                        )
+
+                        position_scores.pop(weakest, None)
+
+            print(f"{strat} BUY {shares} {ticker} @ {round(price, 2)}")
+
+            reason = " ".join([f"{k}={v}" for k, v in vote_details.items()])
+            print(f"Reason: {reason} ({vote_strength} votes)")
+
+            portfolio.buy(ticker, price, shares)
+
+            position_scores[ticker] = vote_strength
+
+            high_prices[ticker] = price
+
+            log_trade(
+                ticker,
+                "BUY",
+                shares,
+                price,
+                "COUNCIL",
+                portfolio.cash,
+                portfolio.total_value(prices)
+            )
+
+            generate_trade_chart(ticker)
+
+            cooldowns[ticker] = time.time()
+
+
+        elif signal == "SELL" and held > 0:
+
+            print(f"{strat} SELL {held} {ticker}")
+
+            reason = " ".join([f"{k}={v}" for k, v in vote_details.items()])
+            print(f"Reason: {reason} ({vote_strength} votes)")
+
+            entry = portfolio.entry_prices.get(ticker, price)
+
+            portfolio.sell(ticker, price, held)
+
+            # --- strategy learning memory ---
+            pnl = (price - entry) * held
+
+            for strategy_name, vote in vote_details.items():
+
+                if strategy_name in strategy_memory:
+
+                    strategy_memory[strategy_name]["pnl"] += pnl
+                    strategy_memory[strategy_name]["trades"] += 1
+
+                    for s in league:
+                        if s["strategy"] == strategy_name:
+                            s["score"] += pnl
+                            s["trades"] += 1
+
+            save_strategy_memory(strategy_memory)
+
+            # --------------------------------
+
+            position_scores.pop(ticker, None)
+
+            log_trade(
+                ticker,
+                "SELL",
+                held,
+                price,
+                "COUNCIL",
+                portfolio.cash,
+                portfolio.total_value(prices)
+            )
+
+            cooldowns[ticker] = time.time()
+
+            high_prices.pop(ticker, None)
+
+    if not prices:
+        print("\nNo market data this cycle.")
+        time.sleep(300)
+        continue
+
+    portfolio_value = portfolio.total_value(prices)
+
+    today_pl = portfolio_value - starting_equity
+    today_pct = (today_pl / starting_equity) * 100
+
+    pl_str = f"+${today_pl:,.2f}" if today_pl >= 0 else f"-${abs(today_pl):,.2f}"
+    pct_str = f"+{today_pct:.2f}%" if today_pct >= 0 else f"{today_pct:.2f}%"
+
+    print("\nTRADE FILTERS")
+    print("-------------")
+
+    if trade_filters:
+        for f in trade_filters[:10]:
+            print(f)
+    else:
+        print("None")
+
+    print("\nPORTFOLIO")
+    print("---------")
+
+    # Portfolio intelligence tracking
+    weakest_position = None
+    weakest_score = None
+
+    if position_scores:
+        weakest_position = min(position_scores, key=position_scores.get)
+        weakest_score = position_scores[weakest_position]
+
+    print(f"Value: ${portfolio_value:,.2f}")
+    print(f"TODAY P/L: {pl_str} ({pct_str})")
+
+    positions_value = portfolio_value - portfolio.cash
+    exposure = (positions_value / portfolio_value) * 100 if portfolio_value > 0 else 0
+
+    print(f"Cash: ${portfolio.cash:,.2f}")
+    print(f"Positions Value: ${positions_value:,.2f}")
+    print(f"Exposure: {exposure:.2f}%")
+
+    if portfolio.positions:
+
+        print("\nPOSITIONS")
+        print("---------")
+
+        total_pnl = 0
+
+        for ticker, qty in portfolio.positions.items():
+            entry_price = portfolio.entry_prices.get(ticker, 0)
+            current_price = prices.get(ticker)
+
+            if current_price is None:
+                continue
+
+            pnl = (current_price - entry_price) * qty
+            total_pnl += pnl
+
+            pnl_str = f"+${pnl:,.2f}" if pnl >= 0 else f"-${abs(pnl):,.2f}"
+
+            position_value = current_price * qty
+
+            print(
+                f"{ticker:<5} {qty:>4} "
+                f"entry:{entry_price:.2f} "
+                f"now:{current_price:.2f} "
+                f"value:${position_value:,.2f} "
+                f"P/L:{pnl_str}"
+            )
+
+        print(f"\nUnrealized P/L: ${total_pnl:,.2f}")
+
+        print("\nRECENT TRADES")
+        print("-------------")
+
+        recent_trades = portfolio.trade_log[-5:]  # show last 5 trades
+
+        if not recent_trades:
+            print("None")
+        else:
+            for trade in recent_trades:
+                action = trade["action"]
+                ticker = trade["ticker"]
+                price = trade["price"]
+                shares = trade["shares"]
+
+                print(f"{action:<4} {ticker:<5} {shares} @ {price:.2f}")
+
+    else:
+        print("No open positions")
+
+    print("\nPORTFOLIO INTELLIGENCE")
+    print("----------------------")
+
+    if weakest_position:
+        print(f"Weakest Position : {weakest_position} (score {weakest_score})")
+    else:
+        print("Weakest Position : None")
+
+    if best_opportunity:
+        print(f"Top Opportunity  : {best_opportunity} (score {best_score})")
+    else:
+        print("Top Opportunity  : None")
+
+    if weakest_position and best_opportunity and best_score > weakest_score:
+        print("Rotation Signal  : YES")
+    else:
+        print("Rotation Signal  : NO")
+
+    portfolio_value = portfolio.total_value(prices)
+
+    log_equity({
+        "MA": portfolio_value,
+        "MR": portfolio_value,
+        "AD": portfolio_value
+    }, BOT_NAME)
+
+    strategy_equity["MA"] = portfolio_value
+    strategy_equity["MR"] = portfolio_value
+    strategy_equity["AD"] = portfolio_value
+
+    # Strategy learning allocation
+    for strat, stats in strategy_memory.items():
+
+        trades = stats["trades"]
+        pnl = stats["pnl"]
+
+        if trades == 0:
+            score = 1
+        else:
+            score = pnl / trades
+
+        strategy_weights[strat] = max(0.5, min(2.5, 1 + score / 100))
+
+    print("\nSTRATEGY LEADERBOARD")
+    print("--------------------")
+
+    leader_row = ""
+
+    for strat, equity in strategy_equity.items():
+        leader_row += f"{strat}:${equity:,.2f}   "
+
+    print(leader_row)
+
+    print("\nSTRATEGY PERFORMANCE")
+    print("--------------------")
+
+    perf_row = ""
+
+    for strat, equity in strategy_equity.items():
+        pnl = equity - starting_equity
+        pnl_pct = (pnl / starting_equity) * 100
+
+        pnl_str = f"+{pnl_pct:.2f}%" if pnl_pct >= 0 else f"{pnl_pct:.2f}%"
+
+        perf_row += f"{strat}:{pnl_str}   "
+
+    print(perf_row)
+
+    cycle_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    print("\nCYCLE SUMMARY")
+    print("-------------")
+    print(f"Time: {cycle_time}")
+    print(f"Portfolio Value: ${portfolio_value:,.2f}")
+    print(f"Open Positions: {len(portfolio.positions)}")
+    print(f"Confirmed Signals: {len(confirmed_signals)}")
+
+    filename = generate_equity_chart(BOT_NAME)
+
+    if filename:
+        print("\nEquity report saved:")
+        print(os.path.abspath(filename))
+    else:
+        print("\nEquity chart not created yet.")
+
+    save_state({
+        "cash": portfolio.cash,
+        "positions": portfolio.positions,
+        "entry_prices": portfolio.entry_prices
+    }, BOT_NAME)
+
+    # -----------------------------
+    # STRATEGY EVOLUTION (PART 7)
+    # -----------------------------
+
+    league = sorted(league, key=lambda x: x["score"], reverse=True)
+
+    # keep best performers
+    league = league[:80]
+
+    for s in league:
+        s["score"] = 0
+        s["trades"] = 0
+
+    # mutate winners
+    while len(league) < 120:
+
+        parent = random.choice(league[:min(10, len(league))])
+
+        # 20% chance of totally new strategy
+        if random.random() < 0.2:
+            child = generate_random_strategy()
+        else:
+            child = parent.copy()
+
+            if child.get("strategy") == "MA":
+                child["short"] = max(2, child["short"] + random.choice([-1, 0, 1]))
+                child["long"] = max(child["short"] + 8, child["long"] + random.choice([-2, 0, 2]))
+
+        child["score"] = 0
+        child["trades"] = 0
+
+        league.append(child)
+
+    save_league(league)
+
+    print("Strategy league evolved:", len(league), "strategies")
+
+    print()
+
+    print("\nTOP AI STRATEGIES")
+    print("-----------------")
+
+    top = sorted(league, key=lambda x: x["score"], reverse=True)[:5]
+
+    for s in top:
+        print(s)
+
+    print(f"\nCycle {cycle} complete.")
+
+    # recommended sleep times
+    if crypto_universe:
+        sleep_seconds = 600  # crypto → 10 minutes
+    else:
+        sleep_seconds = 60  # equities → 1 minute
+
+    next_run = datetime.now() + timedelta(seconds=sleep_seconds)
+
+    print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+
+    minutes = sleep_seconds // 60
+    print(f"Sleeping {minutes} minutes...\n")
+
+    time.sleep(sleep_seconds)
 
 
 if __name__ == "__main__":
