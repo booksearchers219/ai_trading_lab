@@ -1201,9 +1201,11 @@ if __name__ == "__main__":
     )
 
     if args.crypto:
-        best_strategies = load_best_strategies(50) or []
+        bot_name = "crypto" if args.crypto else "equity"
+        best_strategies = load_best_strategies(bot_name, 50) or []
     else:
-        best_strategies = load_best_strategies(10) or []
+        bot_name = "crypto" if args.crypto else "equity"
+        best_strategies = load_best_strategies(bot_name, 10) or []
 
     trend_strategies = best_strategies[:5]
     sideways_strategies = best_strategies[5:10]

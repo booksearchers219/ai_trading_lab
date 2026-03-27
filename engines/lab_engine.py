@@ -144,9 +144,11 @@ def run_strategy_lab(args):
 
     existing = []
 
-    if os.path.exists("strategies.csv"):
+    strategies_file = f"strategies_{bot_name}.csv"
 
-        with open("strategies.csv") as f:
+    if os.path.exists(strategies_file):
+
+        with open(strategies_file) as f:
             reader = csv.DictReader(f)
 
             for row in reader:
@@ -202,7 +204,7 @@ def run_strategy_lab(args):
             writer.writerow(r)
 
     print(f"\nStrategy League Updated: {len(survivors)} survivors")
-    print("\nSaved strategies to strategies.csv")
+    print(f"\nSaved strategies to {strategies_file}")
 
     # --------------------------------------------------
     # Generate backtest report chart

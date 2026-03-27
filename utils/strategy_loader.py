@@ -5,12 +5,11 @@ import csv
 
 
 
-def load_best_strategies(limit=5):
-
+def load_best_strategies(bot_name, limit=5):
     strategies = []
 
     try:
-        with open("strategies.csv") as f:
+        with open(f"strategies_{bot_name}.csv") as f:
 
             reader = csv.DictReader(f)
 
