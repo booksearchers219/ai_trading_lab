@@ -965,7 +965,13 @@ if __name__ == "__main__":
     portfolio_tickers = []
 
     if args.crypto:
-        top_trades = rank_opportunities(signals)  # allow all
+        top_trades = rank_opportunities(signals)
+
+        # FORCE minimum trade count for testing
+        if len(top_trades) < 20:
+            print("DEBUG: Not enough signals, expanding to full universe")
+            top_trades = [(t, 1.0) for t in crypto_universe[:20]]
+
     else:
         top_trades = rank_opportunities(signals)[:5]
 
