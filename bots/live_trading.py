@@ -877,21 +877,19 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
             if combined_signal == "BUY":
 
-                if trend_1h == "DOWN" and regime == "TRENDING":
+                # Only block EXTREME conditions, not normal dips
+                if recent_return < -0.10:
                     combined_signal = "HOLD"
 
-                # Avoid catching falling knives
-                if recent_return < -0.05:
-                    combined_signal = "HOLD"
-
-                # Avoid buying when whole market is falling
-                if market_downtrend:
-                    combined_signal = "HOLD"
+                # Allow MR buys in sideways even if market is weak
+                if regime == "TRENDING" and trend_1h == "DOWN":
+                    pass  # allow early entries instead of blocking
 
             ma50 = data["Close"].rolling(50).mean().iloc[-1]
 
-            if combined_signal == "BUY" and regime == "TRENDING" and data["Close"].iloc[-1] < ma50:
-                combined_signal = "HOLD"
+            if combined_signal == "BUY" and regime == "TRENDING":
+                if data["Close"].iloc[-1] < ma50 and recent_return < -0.08:
+                    combined_signal = "HOLD"
 
             if sell_votes >= 2:
                 combined_signal = "SELL"
