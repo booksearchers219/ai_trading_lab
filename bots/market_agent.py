@@ -356,7 +356,7 @@ def run_research_pipeline(BOT_NAME, crypto_universe=None):
         with open(f"best_strategies_{BOT_NAME}.json", "w") as f:
             json.dump(export_data, f, indent=2)
 
-        print("Exported best_strategies.json")
+        print(f"Exported best_strategies_{BOT_NAME}.json")
 
     except Exception as e:
         print("Strategy export failed:", e)
@@ -464,7 +464,7 @@ if __name__ == "__main__":
     if args.crypto and not args.ticker:
         args.ticker = "BTC-USD"
 
-    BOT_NAME = "crypto_bot" if crypto_mode else "equity_bot"
+    BOT_NAME = "crypto_bot" if args.crypto else "equity_bot"
 
     print(f"DEBUG BOT INIT: {BOT_NAME} | crypto_mode={crypto_mode}")
 
