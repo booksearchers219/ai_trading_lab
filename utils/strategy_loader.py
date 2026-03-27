@@ -1,8 +1,6 @@
 import csv
 
-
-
-def load_best_strategies(limit=5):
+def load_best_strategies(bot_name=None, limit=5):
     strategies = []
 
     try:
