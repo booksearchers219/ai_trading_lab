@@ -352,7 +352,7 @@ def run_research_pipeline():
                 "sharpe": s.get("sharpe")
             })
 
-        with open("best_strategies.json", "w") as f:
+        with open(f"best_strategies_{BOT_NAME}.json", "w") as f:
             json.dump(export_data, f, indent=2)
 
         print("Exported best_strategies.json")
@@ -498,9 +498,7 @@ if __name__ == "__main__":
 
         print("Live trading state reset.\n")
 
-    if args.crypto:
-        BOT_NAME = "crypto_bot"
-        os.environ["BOT_NAME"] = BOT_NAME
+
 
     if args.crypto:
         print("\nCRYPTO MODE ENABLED")
@@ -586,8 +584,10 @@ if __name__ == "__main__":
     # --------------------------------------------------
     if args.crypto:
         BOT_NAME = "crypto_bot"
-    elif args.bot:
-        BOT_NAME = args.bot
+    else:
+        BOT_NAME = "equity_bot"
+
+    os.environ["BOT_NAME"] = BOT_NAME
 
     # --------------------------------------------------
     # Logging setup
@@ -1131,7 +1131,7 @@ if __name__ == "__main__":
                 "sharpe": s.get("sharpe")
             })
 
-        with open("best_strategies.json", "w") as f:
+        with open(f"best_strategies_{BOT_NAME}.json", "w") as f:
             json.dump(export_data, f, indent=2)
 
         print("\nExported best strategies to best_strategies.json")
