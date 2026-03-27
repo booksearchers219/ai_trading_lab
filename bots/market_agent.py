@@ -458,9 +458,13 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    BOT_NAME = "crypto_bot" if args.crypto else "equity_bot"
+    crypto_mode = args.crypto
 
-    print(f"DEBUG BOT INIT: {BOT_NAME}")
+    BOT_NAME = "crypto_bot" if crypto_mode else "equity_bot"
+
+    print(f"DEBUG BOT INIT: {BOT_NAME} | crypto_mode={crypto_mode}")
+
+
     # --------------------------------------------------
     # Research mode
     # --------------------------------------------------
