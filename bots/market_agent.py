@@ -198,7 +198,7 @@ def load_watchlist(filename="watchlist.txt"):
     return tickers
 
 
-def print_market_pulse(data, symbol_data, leaders):
+def print_market_pulse(data, symbol_data, leaders, BOT_NAME):
     if args.crypto:
         print("\nAI CRYPTO TRADING LAB")
     else:
