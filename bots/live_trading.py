@@ -222,7 +222,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
         all_symbols = universe
 
     if crypto_universe:
-        max_positions = 25
+        max_positions = 10
     else:
         max_positions = MAX_POSITIONS
 
@@ -572,6 +572,9 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
         else:
             regime_symbols = ["SPY", "NVDA", "AAPL"]
 
+        if crypto_universe:
+            strategy_weights = {"MA": 1.2, "MR": 1.2, "AD": 1.2}
+
         for sym in regime_symbols:
 
             data = data_cache.get(sym)
@@ -854,7 +857,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
             combined_signal = "HOLD"
             vote_strength = 0
 
-            if buy_votes >= 1:
+            if buy_votes >= .8:
                 combined_signal = "BUY"
                 vote_strength = buy_votes
 
@@ -916,6 +919,9 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
         active_keys = {(ticker, signal) for _, signal, ticker, _, _, _ in signal_list}
 
         print("DEBUG SIGNAL LIST SIZE:", len(signal_list))
+
+        for s in signal_list:
+            print("DEBUG SIGNAL:", s)
 
         for key in list(signal_history.keys()):
             # allow signals to persist across minor changes
