@@ -57,7 +57,7 @@ from evolution.genome_engine import evolve_population
 from evolution.dna_engine import evolve_population as evolve_dna, random_gene
 from evolution.darwin_engine import run_strategy_darwinism
 
-BOT_NAME = "default_bot"
+
 STRATEGY = "adaptive"
 
 MAX_DAILY_LOSS = -0.05  # stop trading at -5% daily loss
