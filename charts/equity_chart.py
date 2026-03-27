@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 import os
 
 
-def generate_equity_chart(bot_name="default_bot"):
+def generate_equity_chart(BOT_NAME="default_bot"):
     print("DEBUG: generating equity chart...")
 
-    BOT_NAME = bot_name
+    BOT_NAME = BOT_NAME
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
     logfile = os.path.join(BASE_DIR, f"equity_log_{BOT_NAME}.csv")

@@ -190,7 +190,7 @@ def compute_sector_flow(prices, data_cache):
     return sector_scores
 
 
-def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_bot"):
+def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_bot"):
     league = load_league() or []
 
     if not league:
@@ -207,7 +207,7 @@ def run_live_simulation(universe=None, crypto_universe=None, bot_name="default_b
 
         save_league(league)
 
-    BOT_NAME = bot_name
+    BOT_NAME = BOT_NAME
     print("DEBUG logger BOT_NAME =", BOT_NAME)
 
     if universe is None:
@@ -1755,5 +1755,5 @@ if __name__ == "__main__":
 
     run_live_simulation(
         crypto_universe=CRYPTO_UNIVERSE,
-        bot_name="crypto_bot"
+        BOT_NAME="crypto_bot"
     )

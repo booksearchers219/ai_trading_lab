@@ -456,9 +456,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Run crypto market scan"
     )
-
     args = parser.parse_args()
 
+    BOT_NAME = "crypto_bot" if args.crypto else "equity_bot"
+
+    print(f"DEBUG BOT INIT: {BOT_NAME}")
     # --------------------------------------------------
     # Research mode
     # --------------------------------------------------
@@ -497,8 +499,6 @@ if __name__ == "__main__":
             print("No saved state found.")
 
         print("Live trading state reset.\n")
-
-
 
     if args.crypto:
         print("\nCRYPTO MODE ENABLED")
@@ -1054,8 +1054,6 @@ if __name__ == "__main__":
                                 test_data,
                                 volatility_breakout_strategy
                             )
-
-
 
                         sharpe_scores.append(calculate_sharpe(equity))
 

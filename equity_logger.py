@@ -3,9 +3,9 @@ import csv
 from datetime import datetime
 
 
-def log_equity(data, bot_name="default_bot"):
+def log_equity(data, BOT_NAME="default_bot"):
 
-    EQUITY_FILE = f"equity_log_{bot_name}.csv"
+    EQUITY_FILE = f"equity_log_{BOT_NAME}.csv"
 
     file_exists = os.path.exists(EQUITY_FILE)
 

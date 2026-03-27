@@ -144,7 +144,7 @@ def run_strategy_lab(args):
 
     existing = []
 
-    strategies_file = f"strategies_{bot_name}.csv"
+    strategies_file = f"strategies_{BOT_NAME}.csv"
 
     if os.path.exists(strategies_file):
 
