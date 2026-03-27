@@ -57,7 +57,7 @@ from evolution.genome_engine import evolve_population
 from evolution.dna_engine import evolve_population as evolve_dna, random_gene
 from evolution.darwin_engine import run_strategy_darwinism
 
-BOT_NAME = os.getenv("BOT_NAME", "default_bot")
+BOT_NAME = "default_bot"
 STRATEGY = "adaptive"
 
 MAX_DAILY_LOSS = -0.05  # stop trading at -5% daily loss
@@ -587,7 +587,7 @@ if __name__ == "__main__":
     else:
         BOT_NAME = "equity_bot"
 
-    os.environ["BOT_NAME"] = BOT_NAME
+    # DO NOT persist to environment (this was causing bleed-over)
 
     # --------------------------------------------------
     # Logging setup
@@ -1201,11 +1201,10 @@ if __name__ == "__main__":
     )
 
     if args.crypto:
-        bot_name = "crypto" if args.crypto else "equity"
-        best_strategies = load_best_strategies(bot_name, 50) or []
-    else:
-        bot_name = "crypto" if args.crypto else "equity"
-        best_strategies = load_best_strategies(bot_name, 10) or []
+        if args.crypto:
+            best_strategies = load_best_strategies("crypto_bot", 50) or []
+        else:
+            best_strategies = load_best_strategies("equity_bot", 10) or []
 
     trend_strategies = best_strategies[:5]
     sideways_strategies = best_strategies[5:10]
