@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import random
 import yfinance as yf
 import pytz
-
+import sys
 from data_utils import get_recent_data
 
 from charts.equity_chart import generate_equity_chart
@@ -1754,7 +1754,12 @@ if __name__ == "__main__":
         "APT-USD"
     ]
 
-    run_live_simulation(
-        crypto_universe=CRYPTO_UNIVERSE,
-        BOT_NAME="crypto_bot"
-    )
+    if "--crypto" in sys.argv:
+        run_live_simulation(
+            crypto_universe=CRYPTO_UNIVERSE,
+            BOT_NAME="crypto_bot"
+        )
+    else:
+        run_live_simulation(
+            BOT_NAME="equity_bot"
+        )
