@@ -10,7 +10,7 @@ from core.strategy_registry import STRATEGY_REGISTRY
 import random
 
 
-def run_strategy_lab(args):
+def run_strategy_lab(args, BOT_NAME="default_bot"):
     print("\nRunning Strategy Lab\n")
 
     if args.crypto:
