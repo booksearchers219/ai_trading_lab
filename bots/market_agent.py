@@ -655,882 +655,822 @@ if __name__ == "__main__":
             try:
                 run_research_pipeline(BOT_NAME, crypto_universe if args.crypto else None)
 
-
-
-
             except Exception as e:
-
                 print("\n⚠ RESEARCH CYCLE ERROR")
-
                 traceback.print_exc()
 
             if args.crypto:
-                sleep_seconds = 600
+                sleep_seconds = 600  # 10 minutes for crypto
             else:
-                sleep_seconds = 900
+                sleep_seconds = 900  # 15 minutes for equities
 
             next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
             print(f"\nCycle {cycle} complete.")
             print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
             print(f"Sleeping {sleep_seconds // 60} minutes...\n")
-
             time.sleep(sleep_seconds)
 
-            if args.daemon:
+            
 
+    elif args.live:
 
+        if args.crypto:
+            universe = []
+            crypto_universe = load_crypto_watchlist()
 
-                print("\nDaemon mode active")
-                print("Crypto mode:", args.crypto)
-                print("Bot:", BOT_NAME)
+        elif args.top10:
+            universe = TOP10
+            crypto_universe = []
 
-                cycle = 0
+        else:
+            universe = load_watchlist()
+            crypto_universe = []
 
-            while True:
+        print("\nTrading Universe")
+        print("----------------")
 
-                cycle += 1
+        for t in universe:
+            print(t)
 
-                try:
+        if crypto_universe:
+            for c in crypto_universe:
+                print(c)
 
-                    print("\n==============================")
-                    print(f"AI TRADING CYCLE {cycle}")
-                    print("==============================")
+        run_live_simulation(universe, crypto_universe, BOT_NAME)
+        exit()
 
-                    if args.crypto:
+    ticker = args.ticker.upper()
+    months = args.window
 
-                        crypto_universe = load_crypto_watchlist()
+    if args.scan:
 
-                        if not crypto_universe:
-                            crypto_universe = [
-                                "BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD",
-                                "ADA-USD", "DOGE-USD", "AVAX-USD", "LINK-USD", "DOT-USD",
-                                "LTC-USD", "ATOM-USD", "NEAR-USD", "FIL-USD", "ETC-USD",
-                                "XLM-USD",
-                            ]
+        if args.crypto:
+            args.tickers = crypto_universe
 
-                        run_live_simulation([], crypto_universe, BOT_NAME)
+        run_scan_and_report(args)
+        exit()
 
-                    else:
+    if args.lab:
+        run_strategy_lab(args)
+        exit()
 
-                        universe = load_watchlist()
-                        run_live_simulation(universe, [], BOT_NAME)
+    if args.auto:
+        run_autonomous_cycle()
+        exit()
 
-                except Exception as e:
+    if args.cycle:
 
-                    print("\n⚠ DAEMON ERROR")
-                    print(e)
+        print("\nAUTONOMOUS TRADING CYCLE")
+        print("------------------------")
 
-                if args.crypto:
-                    sleep_seconds = 600  # 10 minutes for crypto
-                else:
-                    sleep_seconds = 900  # 15 minutes for equities
+        leaders = find_momentum_leaders(DISCOVERY_UNIVERSE, top_n=3)
 
-                next_run = datetime.now() + timedelta(seconds=sleep_seconds)
+        print("\nMomentum Leaders")
+        print("----------------")
 
-                print(f"\nCycle {cycle} complete.")
-                print(f"Next cycle at {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
-                print(f"Sleeping {sleep_seconds // 60} minutes...\n")
-                time.sleep(sleep_seconds)
+        for sym, pct in leaders:
+            print(f"{sym:<6} {pct * 100:+.2f}%")
 
-if args.live:
+        print("\nRunning strategy labs...\n")
+
+        for sym, pct in leaders:
+
+            try:
+                print(f"Testing {sym}")
+
+                lab_args = argparse.Namespace(
+                    ticker=sym,
+                    window=12,
+                    top=5,
+                    report=False
+                )
+
+                run_strategy_lab(lab_args)
+
+            except Exception as e:
+                print(f"Lab failed for {sym}: {e}")
+
+        print("\nCycle complete.")
+
+        exit()
+
+    if args.evolve:
+        run_evolution_search(args)
+        exit()
 
     if args.crypto:
-        universe = []
-        crypto_universe = load_crypto_watchlist()
 
-    elif args.top10:
-        universe = TOP10
-        crypto_universe = []
+        symbol_data = {}
+
+        for sym in crypto_universe:
+
+            try:
+                df = get_recent_data(sym, months)
+
+                if df is not None and len(df) > 0:
+                    symbol_data[sym] = df
+
+            except Exception as e:
+                print(f"Data error for {sym}: {e}")
 
     else:
-        universe = load_watchlist()
-        crypto_universe = []
 
-    print("\nTrading Universe")
-    print("----------------")
+        spy_data = get_recent_data("SPY", 6)
+        nvda_data = get_recent_data("NVDA", 6)
+        amd_data = get_recent_data("AMD", 6)
+        tsla_data = get_recent_data("TSLA", 6)
+        meta_data = get_recent_data("META", 6)
 
-    for t in universe:
-        print(t)
+        symbol_data = {
+            "SPY": spy_data,
+            "NVDA": nvda_data,
+            "AMD": amd_data,
+            "TSLA": tsla_data,
+            "META": meta_data
+        }
 
-    if crypto_universe:
-        for c in crypto_universe:
-            print(c)
-
-    run_live_simulation(universe, crypto_universe, BOT_NAME)
-    exit()
-
-ticker = args.ticker.upper()
-months = args.window
-
-if args.scan:
+    print(f"\nRunning Strategy Comparison on {ticker}\n")
+    print("=" * 70)
 
     if args.crypto:
-        args.tickers = crypto_universe
+        leaders = find_momentum_leaders(crypto_universe, top_n=5)
+    else:
+        leaders = find_momentum_leaders(DISCOVERY_UNIVERSE, top_n=5)
 
-    run_scan_and_report(args)
-    exit()
-
-if args.lab:
-    run_strategy_lab(args)
-    exit()
-
-if args.auto:
-    run_autonomous_cycle()
-    exit()
-
-if args.cycle:
-
-    print("\nAUTONOMOUS TRADING CYCLE")
-    print("------------------------")
-
-    leaders = find_momentum_leaders(DISCOVERY_UNIVERSE, top_n=3)
-
-    print("\nMomentum Leaders")
-    print("----------------")
+    print("\nAUTO STRATEGY DISCOVERY")
+    print("-----------------------")
 
     for sym, pct in leaders:
-        print(f"{sym:<6} {pct * 100:+.2f}%")
 
-    print("\nRunning strategy labs...\n")
-
-    for sym, pct in leaders:
+        print(f"\nRunning strategy lab for {sym} ({pct * 100:+.2f}%)")
 
         try:
-            print(f"Testing {sym}")
-
-            lab_args = argparse.Namespace(
-                ticker=sym,
-                window=12,
-                top=5,
-                report=False
+            run_strategy_lab(
+                argparse.Namespace(
+                    ticker=sym,
+                    window=6,
+                    top=10,
+                    report=False,
+                    crypto=args.crypto
+                )
             )
-
-            run_strategy_lab(lab_args)
 
         except Exception as e:
             print(f"Lab failed for {sym}: {e}")
 
-    print("\nCycle complete.")
+    data = get_recent_data(ticker, months)
 
-    exit()
+    print_trend_panel(symbol_data)
+    print_market_breadth(symbol_data)
+    print_market_regime(data)
+    print_market_sentiment(symbol_data)
+    print_watchlist_momentum(symbol_data)
+    print_strategy_confidence(symbol_data)
+    print_strategy_agreement(symbol_data)
 
-if args.evolve:
-    run_evolution_search(args)
-    exit()
+    print_momentum_leaders(leaders)
 
-if args.crypto:
+    data_cache = symbol_data
+    adaptive_state = {}
 
-    symbol_data = {}
+    portfolio_tickers = []
 
-    for sym in crypto_universe:
+    # --- DATA SAFETY CHECK ---
+    bad_symbols = []
 
-        try:
-            df = get_recent_data(sym, months)
+    for symbol, df in symbol_data.items():
+        if df is None or len(df) == 0 or df["Close"].isna().any():
+            bad_symbols.append(symbol)
 
-            if df is not None and len(df) > 0:
-                symbol_data[sym] = df
+    if bad_symbols:
+        print("\n⚠ DATA ERROR - Skipping cycle")
+        print("Missing data for:", ", ".join(bad_symbols))
+        signals = []
+    else:
+        signals = generate_signals(symbol_data, data_cache, adaptive_state)
 
-        except Exception as e:
-            print(f"Data error for {sym}: {e}")
+        # --- DAILY LOSS SAFETY ---
+        if hasattr(adaptive_state, "start_equity"):
 
-else:
+            current_equity = adaptive_state.get("equity", 0)
+            start_equity = adaptive_state.get("start_equity", current_equity)
 
-    spy_data = get_recent_data("SPY", 6)
-    nvda_data = get_recent_data("NVDA", 6)
-    amd_data = get_recent_data("AMD", 6)
-    tsla_data = get_recent_data("TSLA", 6)
-    meta_data = get_recent_data("META", 6)
+            if start_equity > 0:
 
-    symbol_data = {
-        "SPY": spy_data,
-        "NVDA": nvda_data,
-        "AMD": amd_data,
-        "TSLA": tsla_data,
-        "META": meta_data
-    }
+                daily_return = (current_equity - start_equity) / start_equity
 
-print(f"\nRunning Strategy Comparison on {ticker}\n")
-print("=" * 70)
+                if daily_return <= MAX_DAILY_LOSS:
+                    print("\n⚠ DAILY LOSS LIMIT HIT")
+                    print(f"Return: {daily_return * 100:.2f}%")
 
-if args.crypto:
-    leaders = find_momentum_leaders(crypto_universe, top_n=5)
-else:
-    leaders = find_momentum_leaders(DISCOVERY_UNIVERSE, top_n=5)
+                    print("Trading halted for safety.")
 
-print("\nAUTO STRATEGY DISCOVERY")
-print("-----------------------")
-
-for sym, pct in leaders:
-
-    print(f"\nRunning strategy lab for {sym} ({pct * 100:+.2f}%)")
-
-    try:
-        run_strategy_lab(
-            argparse.Namespace(
-                ticker=sym,
-                window=6,
-                top=10,
-                report=False,
-                crypto=args.crypto
-            )
-        )
-
-    except Exception as e:
-        print(f"Lab failed for {sym}: {e}")
-
-data = get_recent_data(ticker, months)
-
-print_trend_panel(symbol_data)
-print_market_breadth(symbol_data)
-print_market_regime(data)
-print_market_sentiment(symbol_data)
-print_watchlist_momentum(symbol_data)
-print_strategy_confidence(symbol_data)
-print_strategy_agreement(symbol_data)
-
-print_momentum_leaders(leaders)
-
-data_cache = symbol_data
-adaptive_state = {}
-
-portfolio_tickers = []
-
-# --- DATA SAFETY CHECK ---
-bad_symbols = []
-
-for symbol, df in symbol_data.items():
-    if df is None or len(df) == 0 or df["Close"].isna().any():
-        bad_symbols.append(symbol)
-
-if bad_symbols:
-    print("\n⚠ DATA ERROR - Skipping cycle")
-    print("Missing data for:", ", ".join(bad_symbols))
-    signals = []
-else:
-    signals = generate_signals(symbol_data, data_cache, adaptive_state)
-
-    # --- DAILY LOSS SAFETY ---
-    if hasattr(adaptive_state, "start_equity"):
-
-        current_equity = adaptive_state.get("equity", 0)
-        start_equity = adaptive_state.get("start_equity", current_equity)
-
-        if start_equity > 0:
-
-            daily_return = (current_equity - start_equity) / start_equity
-
-            if daily_return <= MAX_DAILY_LOSS:
-                print("\n⚠ DAILY LOSS LIMIT HIT")
-                print(f"Return: {daily_return * 100:.2f}%")
-
-                print("Trading halted for safety.")
-
-                sys.exit()
+                    sys.exit()
+        # -------------------------
     # -------------------------
-# -------------------------
 
-print_opportunity_heatmap(signals)
-print_signal_radar(signals)
-print_top_opportunities(signals)
+    print_opportunity_heatmap(signals)
+    print_signal_radar(signals)
+    print_top_opportunities(signals)
 
-portfolio_results = {}
+    portfolio_results = {}
 
-regimes = regime_history(data)
-market_regime = regimes[-1] if regimes else "UNKNOWN"
+    regimes = regime_history(data)
+    market_regime = regimes[-1] if regimes else "UNKNOWN"
 
-volatility_regime = detect_volatility_regime(data)
+    volatility_regime = detect_volatility_regime(data)
 
-mode = decide_strategy_mode(market_regime, volatility_regime)
+    mode = decide_strategy_mode(market_regime, volatility_regime)
 
-print("\nAI MARKET MODE")
-print("--------------")
-print(mode)
+    print("\nAI MARKET MODE")
+    print("--------------")
+    print(mode)
 
-print("\nRUNNING PORTFOLIO BACKTEST")
-print("--------------------------")
+    print("\nRUNNING PORTFOLIO BACKTEST")
+    print("--------------------------")
 
-for sym in portfolio_tickers:
-    print(f"\nRunning strategies for {sym}")
+    for sym in portfolio_tickers:
+        print(f"\nRunning strategies for {sym}")
 
-    data = get_recent_data(sym, months)
+        data = get_recent_data(sym, months)
 
-    equity, final, *_ = run_backtest(data, analyze_market)
+        equity, final, *_ = run_backtest(data, analyze_market)
 
-    portfolio_results[sym] = final
+        portfolio_results[sym] = final
 
-    print("\nPORTFOLIO RESULTS")
-    print("-----------------")
+        print("\nPORTFOLIO RESULTS")
+        print("-----------------")
 
-    for sym, val in portfolio_results.items():
-        print(f"{sym:<6} ${val:,.2f}")
+        for sym, val in portfolio_results.items():
+            print(f"{sym:<6} ${val:,.2f}")
 
-# Build portfolio from signals
-portfolio_tickers = []
+    # Build portfolio from signals
+    portfolio_tickers = []
 
-if args.crypto:
-    top_trades = rank_opportunities(signals)
+    if args.crypto:
+        top_trades = rank_opportunities(signals)
 
-    # FORCE minimum trade count for testing
-    if len(top_trades) < 20:
-        print("DEBUG: Not enough signals, expanding to full universe")
-        top_trades = [(t, 1.0) for t in crypto_universe[:20]]
+        # FORCE minimum trade count for testing
+        if len(top_trades) < 20:
+            print("DEBUG: Not enough signals, expanding to full universe")
+            top_trades = [(t, 1.0) for t in crypto_universe[:20]]
 
-else:
-    top_trades = rank_opportunities(signals)[:5]
+    else:
+        top_trades = rank_opportunities(signals)[:5]
 
-print("\nAI PORTFOLIO MANAGER")
-print("--------------------")
+    print("\nAI PORTFOLIO MANAGER")
+    print("--------------------")
 
-seen = set()
+    seen = set()
 
-for t, score in top_trades:
+    for t, score in top_trades:
 
-    if t in seen:
-        continue
+        if t in seen:
+            continue
 
-    seen.add(t)
+        seen.add(t)
 
-    print(f"{t:<6} score:{score}")
-    portfolio_tickers.append(t)
+        print(f"{t:<6} score:{score}")
+        portfolio_tickers.append(t)
 
-# ----- Strategy Council Snapshot -----
+    # ----- Strategy Council Snapshot -----
 
-votes = []
+    votes = []
 
-if mode in ["TREND", "NEUTRAL"]:
-    votes.append(analyze_market(data))
+    if mode in ["TREND", "NEUTRAL"]:
+        votes.append(analyze_market(data))
 
-if mode in ["MEAN_REVERSION", "NEUTRAL"]:
-    votes.append(mean_reversion_strategy(data))
+    if mode in ["MEAN_REVERSION", "NEUTRAL"]:
+        votes.append(mean_reversion_strategy(data))
 
-if mode != "DEFENSIVE":
-    votes.append(adaptive_strategy(data, {}))
+    if mode != "DEFENSIVE":
+        votes.append(adaptive_strategy(data, {}))
 
-votes.append(volatility_breakout_strategy(data))
+    votes.append(volatility_breakout_strategy(data))
 
-council_votes = votes
+    council_votes = votes
 
-buy_votes = council_votes.count("BUY")
-sell_votes = council_votes.count("SELL")
+    buy_votes = council_votes.count("BUY")
+    sell_votes = council_votes.count("SELL")
 
-decision = "HOLD"
+    decision = "HOLD"
 
-if buy_votes >= 3:
-    decision = "BUY"
-elif sell_votes >= 3:
-    decision = "SELL"
+    if buy_votes >= 3:
+        decision = "BUY"
+    elif sell_votes >= 3:
+        decision = "SELL"
 
-confidence = max(buy_votes, sell_votes) / len(council_votes)
+    confidence = max(buy_votes, sell_votes) / len(council_votes)
 
-sectors = compute_sector_strength(symbol_data)
+    sectors = compute_sector_strength(symbol_data)
 
-print("\nDNA STRATEGY EVOLUTION")
-print("----------------------")
+    print("\nDNA STRATEGY EVOLUTION")
+    print("----------------------")
 
-population = [random_gene() for _ in range(40)]
+    population = [random_gene() for _ in range(40)]
 
-generations = 5
+    generations = 5
 
-for g in range(generations):
+    for g in range(generations):
 
-    print(f"\nGeneration {g + 1}")
+        print(f"\nGeneration {g + 1}")
 
-    population_scores = []
+        population_scores = []
 
-    for gene in population:
+        for gene in population:
 
-        strat, p1, p2 = gene
+            strat, p1, p2 = gene
 
-        try:
+            try:
 
-            sharpe_scores = []
+                sharpe_scores = []
 
-            for symbol in EVOLUTION_TEST_UNIVERSE:
+                for symbol in EVOLUTION_TEST_UNIVERSE:
 
-                try:
+                    try:
 
-                    test_data = get_recent_data(symbol, 12)
+                        test_data = get_recent_data(symbol, 12)
 
-                    if strat == "MA":
-                        equity, final, *_ = run_backtest(
-                            test_data,
-                            lambda d: analyze_market(d, p1, p2)
-                        )
+                        if strat == "MA":
+                            equity, final, *_ = run_backtest(
+                                test_data,
+                                lambda d: analyze_market(d, p1, p2)
+                            )
 
-                    elif strat == "MR":
-                        equity, final, *_ = run_backtest(
-                            test_data,
-                            lambda d: mean_reversion_strategy(d, -p1 / 100)
-                        )
+                        elif strat == "MR":
+                            equity, final, *_ = run_backtest(
+                                test_data,
+                                lambda d: mean_reversion_strategy(d, -p1 / 100)
+                            )
 
-                    elif strat == "VOL":
-                        equity, final, *_ = run_backtest(
-                            test_data,
-                            volatility_breakout_strategy
-                        )
+                        elif strat == "VOL":
+                            equity, final, *_ = run_backtest(
+                                test_data,
+                                volatility_breakout_strategy
+                            )
 
-                    sharpe_scores.append(calculate_sharpe(equity))
+                        sharpe_scores.append(calculate_sharpe(equity))
 
-                except Exception:
-                    continue
+                    except Exception:
+                        continue
 
-            if sharpe_scores:
-                sharpe = sum(sharpe_scores) / len(sharpe_scores)
-            else:
+                if sharpe_scores:
+                    sharpe = sum(sharpe_scores) / len(sharpe_scores)
+                else:
+                    sharpe = -999
+
+            except Exception:
                 sharpe = -999
 
-        except Exception:
-            sharpe = -999
+            population_scores.append((gene, sharpe))
 
-        population_scores.append((gene, sharpe))
+        population = evolve_dna(population_scores)
 
-    population = evolve_dna(population_scores)
+    print(f"Next generation created: {len(population)} strategies")
 
-print(f"Next generation created: {len(population)} strategies")
+    print("\nGENOME STRATEGY DISCOVERY")
+    print("-------------------------")
 
-print("\nGENOME STRATEGY DISCOVERY")
-print("-------------------------")
+    genomes = evolve_population(data)
 
-genomes = evolve_population(data)
+    league = load_league()  # load once
 
-league = load_league()  # load once
+    for g, sharpe in genomes:
 
-for g, sharpe in genomes:
+        strat, p1, p2 = g
 
-    strat, p1, p2 = g
+        if p2:
+            params = f"{p1}/{p2}"
+        else:
+            params = f"{p1}"
 
-    if p2:
-        params = f"{p1}/{p2}"
-    else:
-        params = f"{p1}"
+        print(f"{strat} {params} Sharpe {sharpe:.2f}")
 
-    print(f"{strat} {params} Sharpe {sharpe:.2f}")
-
-    league.append({
-        "strategy": strat,
-        "short": p1,
-        "long": p2,
-        "sharpe": sharpe,
-        "wins": 0,
-        "losses": 0,
-        "score": sharpe
-    })
-
-league = update_scores(league)
-
-league = run_strategy_darwinism(league)
-
-# Keep only the best 500 strategies
-league = sorted(league, key=lambda x: x["score"], reverse=True)[:500]
-
-save_league(league)
-
-# --------------------------------------------------
-# Export best strategies for live trading bots
-# --------------------------------------------------
-
-try:
-
-    top_strategies = [s for s in league if s["sharpe"] > 0][:10]
-
-    export_data = []
-
-    for s in top_strategies:
-        export_data.append({
-            "strategy": s["strategy"],
-            "short": s.get("short"),
-            "long": s.get("long"),
-            "sharpe": s.get("sharpe")
+        league.append({
+            "strategy": strat,
+            "short": p1,
+            "long": p2,
+            "sharpe": sharpe,
+            "wins": 0,
+            "losses": 0,
+            "score": sharpe
         })
 
-    bot_name = globals().get("BOT_NAME", "default_bot")
+    league = update_scores(league)
 
-    with open(f"best_strategies_{bot_name}.json", "w") as f:
+    league = run_strategy_darwinism(league)
 
-        json.dump(export_data, f, indent=2)
+    # Keep only the best 500 strategies
+    league = sorted(league, key=lambda x: x["score"], reverse=True)[:500]
 
-    print("\nExported best strategies to best_strategies.json")
+    save_league(league)
 
-except Exception as e:
-    print("Strategy export failed:", e)
+    # --------------------------------------------------
+    # Export best strategies for live trading bots
+    # --------------------------------------------------
 
-# Strategy Darwinism
-# SURVIVAL_THRESHOLD = 0.1
+    try:
 
-# league = [s for s in league if s["score"] > SURVIVAL_THRESHOLD]
+        top_strategies = [s for s in league if s["sharpe"] > 0][:10]
 
-print("\nSTRATEGY EVOLUTION")
-print("------------------")
-print("Strategies surviving:", len(league))
+        export_data = []
 
-print("\nSTRATEGY LEAGUE TOP 10")
-print("----------------------")
+        for s in top_strategies:
+            export_data.append({
+                "strategy": s["strategy"],
+                "short": s.get("short"),
+                "long": s.get("long"),
+                "sharpe": s.get("sharpe")
+            })
 
-for s in league[:10]:
+        bot_name = globals().get("BOT_NAME", "default_bot")
 
-    short = s["short"]
-    long = s["long"]
+        with open(f"best_strategies_{bot_name}.json", "w") as f:
 
-    if long:
-        params = f"{short}/{long}"
-    else:
-        params = f"{short}"
+            json.dump(export_data, f, indent=2)
 
-    print(
-        f"{s['strategy']} {params} "
-        f"Sharpe:{s['sharpe']:.2f} "
-        f"Score:{s['score']:.2f}"
+        print("\nExported best strategies to best_strategies.json")
+
+    except Exception as e:
+        print("Strategy export failed:", e)
+
+    # Strategy Darwinism
+    # SURVIVAL_THRESHOLD = 0.1
+
+    # league = [s for s in league if s["score"] > SURVIVAL_THRESHOLD]
+
+    print("\nSTRATEGY EVOLUTION")
+    print("------------------")
+    print("Strategies surviving:", len(league))
+
+    print("\nSTRATEGY LEAGUE TOP 10")
+    print("----------------------")
+
+    for s in league[:10]:
+
+        short = s["short"]
+        long = s["long"]
+
+        if long:
+            params = f"{short}/{long}"
+        else:
+            params = f"{short}"
+
+        print(
+            f"{s['strategy']} {params} "
+            f"Sharpe:{s['sharpe']:.2f} "
+            f"Score:{s['score']:.2f}"
+        )
+
+    print("-" * 70)
+    print("\nSECTOR FLOW")
+    print("-----------")
+
+    for sector, (label, pct) in sorted(sectors.items()):
+        pct_str = f"{pct * 100:+.2f}%"
+
+        print(f"{sector:<7} {label:<10} {pct_str}")
+
+    # Run strategies
+    ma_equity, ma_final, ma_buys, ma_sells, ma_profits = run_backtest(data, analyze_market)
+
+    wf = walkforward_test(data, analyze_market)
+
+    print("\nWALK FORWARD TEST")
+    print("-----------------")
+    print(f"Train Sharpe: {wf['train_sharpe']:.2f}")
+    print(f"Test Sharpe:  {wf['test_sharpe']:.2f}")
+
+    mr_equity, mr_final, mr_buys, mr_sells, mr_profits = run_backtest(data, mean_reversion_strategy)
+    adaptive_equity, adaptive_final, ad_buys, ad_sells, ad_profits = run_backtest(data, adaptive_strategy)
+
+    vol_equity, vol_final, vol_buys, vol_sells, vol_profits = run_backtest(
+        data, volatility_breakout_strategy
     )
 
-print("-" * 70)
-print("\nSECTOR FLOW")
-print("-----------")
+    vote_state = {"debug": args.debug_votes}
 
-for sector, (label, pct) in sorted(sectors.items()):
-    pct_str = f"{pct * 100:+.2f}%"
+    vote_equity, vote_final, vote_buys, vote_sells, vote_profits = run_backtest(
+        data,
+        lambda d: voting_strategy(d, vote_state)
+    )
 
-    print(f"{sector:<7} {label:<10} {pct_str}")
-
-# Run strategies
-ma_equity, ma_final, ma_buys, ma_sells, ma_profits = run_backtest(data, analyze_market)
-
-wf = walkforward_test(data, analyze_market)
-
-print("\nWALK FORWARD TEST")
-print("-----------------")
-print(f"Train Sharpe: {wf['train_sharpe']:.2f}")
-print(f"Test Sharpe:  {wf['test_sharpe']:.2f}")
-
-mr_equity, mr_final, mr_buys, mr_sells, mr_profits = run_backtest(data, mean_reversion_strategy)
-adaptive_equity, adaptive_final, ad_buys, ad_sells, ad_profits = run_backtest(data, adaptive_strategy)
-
-vol_equity, vol_final, vol_buys, vol_sells, vol_profits = run_backtest(
-    data, volatility_breakout_strategy
-)
-
-vote_state = {"debug": args.debug_votes}
-
-vote_equity, vote_final, vote_buys, vote_sells, vote_profits = run_backtest(
-    data,
-    lambda d: voting_strategy(d, vote_state)
-)
-
-if args.crypto:
-    best_strategies = load_best_strategies("crypto_bot", 50) or []
-else:
-    best_strategies = load_best_strategies("equity_bot", 10) or []
-
-trend_strategies = best_strategies[:5]
-sideways_strategies = best_strategies[5:10]
-
-council_state = {
-    "trend_strategies": trend_strategies,
-    "sideways_strategies": sideways_strategies,
-    "debug": args.debug_votes
-}
-
-vote_ma = analyze_market(data)
-vote_mr = mean_reversion_strategy(data)
-vote_ad = adaptive_strategy(data, {})
-vote_vol = volatility_breakout_strategy(data)
-
-council_votes = [vote_ma, vote_mr, vote_ad, vote_vol]
-
-buy_votes = council_votes.count("BUY")
-sell_votes = council_votes.count("SELL")
-
-decision = "HOLD"
-
-if buy_votes >= 3:
-    decision = "BUY"
-elif sell_votes >= 3:
-    decision = "SELL"
-
-confidence = max(buy_votes, sell_votes) / len(council_votes)
-
-council_equity, council_final, council_buys, council_sells, council_profits = run_backtest(
-    data,
-    lambda d: council_strategy(d, council_state)
-)
-
-ma_sharpe = calculate_sharpe(ma_equity)
-mr_sharpe = calculate_sharpe(mr_equity)
-adaptive_sharpe = calculate_sharpe(adaptive_equity)
-vol_sharpe = calculate_sharpe(vol_equity)
-
-strategy_sharpes = {
-    "MA": ma_sharpe,
-    "MR": mr_sharpe,
-    "AD": adaptive_sharpe,
-    "VOL": vol_sharpe
-}
-
-print("\nSTRATEGY SURVIVAL ENGINE")
-print("------------------------")
-
-for name, sharpe in strategy_sharpes.items():
-
-    if sharpe < -0.5:
-        print(f"{name:<5} ❌ KILLED (Sharpe {sharpe:.2f})")
-        strategy_sharpes[name] = 0
-
-    elif sharpe < 0:
-        print(f"{name:<5} ⚠ WEAK (Sharpe {sharpe:.2f})")
-
+    if args.crypto:
+        best_strategies = load_best_strategies("crypto_bot", 50) or []
     else:
-        print(f"{name:<5} 🟢 SURVIVES (Sharpe {sharpe:.2f})")
+        best_strategies = load_best_strategies("equity_bot", 10) or []
 
-weights = allocate_by_sharpe(strategy_sharpes)
+    trend_strategies = best_strategies[:5]
+    sideways_strategies = best_strategies[5:10]
 
-capital = 10000
+    council_state = {
+        "trend_strategies": trend_strategies,
+        "sideways_strategies": sideways_strategies,
+        "debug": args.debug_votes
+    }
 
-print("\nAI CAPITAL ALLOCATION")
-print("---------------------")
+    vote_ma = analyze_market(data)
+    vote_mr = mean_reversion_strategy(data)
+    vote_ad = adaptive_strategy(data, {})
+    vote_vol = volatility_breakout_strategy(data)
 
-for strat, weight in weights.items():
-    allocation = capital * weight
+    council_votes = [vote_ma, vote_mr, vote_ad, vote_vol]
 
-    print(f"{strat:<5} ${allocation:,.0f} ({weight * 100:.1f}%)")
+    buy_votes = council_votes.count("BUY")
+    sell_votes = council_votes.count("SELL")
 
-    if mode == "DEFENSIVE":
-        print("\nDEFENSIVE MODE ACTIVATED")
-        print("------------------------")
+    decision = "HOLD"
 
-        capital *= 0.5
+    if buy_votes >= 3:
+        decision = "BUY"
+    elif sell_votes >= 3:
+        decision = "SELL"
 
-        print(f"Capital reduced to ${capital:,.0f}")
+    confidence = max(buy_votes, sell_votes) / len(council_votes)
 
-print("\nSTRATEGY HEALTH MONITOR")
-print("-----------------------")
+    council_equity, council_final, council_buys, council_sells, council_profits = run_backtest(
+        data,
+        lambda d: council_strategy(d, council_state)
+    )
 
-for name, sharpe in strategy_sharpes.items():
+    ma_sharpe = calculate_sharpe(ma_equity)
+    mr_sharpe = calculate_sharpe(mr_equity)
+    adaptive_sharpe = calculate_sharpe(adaptive_equity)
+    vol_sharpe = calculate_sharpe(vol_equity)
 
-    if sharpe < -0.5:
-        print(f"{name:<6} ❌ DISABLED (Sharpe {sharpe:.2f})")
-        strategy_sharpes[name] = 0
+    strategy_sharpes = {
+        "MA": ma_sharpe,
+        "MR": mr_sharpe,
+        "AD": adaptive_sharpe,
+        "VOL": vol_sharpe
+    }
 
-    elif sharpe < 0:
-        print(f"{name:<6} ⚠ WEAK (Sharpe {sharpe:.2f})")
+    print("\nSTRATEGY SURVIVAL ENGINE")
+    print("------------------------")
 
-    else:
-        print(f"{name:<6} ✔ HEALTHY (Sharpe {sharpe:.2f})")
+    for name, sharpe in strategy_sharpes.items():
 
-print("\nSTRATEGY ALLOCATION")
-print("-------------------")
+        if sharpe < -0.5:
+            print(f"{name:<5} ❌ KILLED (Sharpe {sharpe:.2f})")
+            strategy_sharpes[name] = 0
 
-for k, v in sorted(weights.items(), key=lambda x: x[1], reverse=True):
-    print(f"{k:<3} {v * 100:5.1f}%")
+        elif sharpe < 0:
+            print(f"{name:<5} ⚠ WEAK (Sharpe {sharpe:.2f})")
 
-vote_sharpe = calculate_sharpe(vote_equity)
-council_sharpe = calculate_sharpe(council_equity)
+        else:
+            print(f"{name:<5} 🟢 SURVIVES (Sharpe {sharpe:.2f})")
 
-# Buy & Hold
-first_price = data["Close"].iloc[0]
-last_price = data["Close"].iloc[-1]
+    weights = allocate_by_sharpe(strategy_sharpes)
 
-bh_shares = 10000 / first_price
-bh_final = bh_shares * last_price
+    capital = 10000
 
-bh_equity = []
-for i in range(30, len(data)):
-    price = data["Close"].iloc[i]
-    bh_equity.append(bh_shares * price)
+    print("\nAI CAPITAL ALLOCATION")
+    print("---------------------")
 
-bh_sharpe = calculate_sharpe(bh_equity)
+    for strat, weight in weights.items():
+        allocation = capital * weight
 
-strategy_results = {
-    "MA": {"final": ma_final, "sharpe": ma_sharpe},
-    "MR": {"final": mr_final, "sharpe": mr_sharpe},
-    "Adaptive": {"final": adaptive_final, "sharpe": adaptive_sharpe},
-    "Vote": {"final": vote_final, "sharpe": vote_sharpe},
-    "Council": {"final": council_final, "sharpe": council_sharpe},
-    "BuyHold": {"final": bh_final, "sharpe": bh_sharpe},
-    "Volatility": {"final": vol_final, "sharpe": vol_sharpe},
-}
+        print(f"{strat:<5} ${allocation:,.0f} ({weight * 100:.1f}%)")
 
-from leaderboard import print_leaderboard
+        if mode == "DEFENSIVE":
+            print("\nDEFENSIVE MODE ACTIVATED")
+            print("------------------------")
 
-print_leaderboard(strategy_results)
+            capital *= 0.5
 
-if args.sweep:
+            print(f"Capital reduced to ${capital:,.0f}")
 
-    short_windows = range(5, 31, 5)
-    long_windows = range(20, 201, 20)
+    print("\nSTRATEGY HEALTH MONITOR")
+    print("-----------------------")
 
-    results = []
-    top_results = []
+    for name, sharpe in strategy_sharpes.items():
 
-    for s in short_windows:
-        for l in long_windows:
+        if sharpe < -0.5:
+            print(f"{name:<6} ❌ DISABLED (Sharpe {sharpe:.2f})")
+            strategy_sharpes[name] = 0
 
-            if s >= l:
-                continue
+        elif sharpe < 0:
+            print(f"{name:<6} ⚠ WEAK (Sharpe {sharpe:.2f})")
 
+        else:
+            print(f"{name:<6} ✔ HEALTHY (Sharpe {sharpe:.2f})")
 
-            def ma_strategy(data, short=s, long=l):
-                return analyze_market(data, short, long)
+    print("\nSTRATEGY ALLOCATION")
+    print("-------------------")
 
+    for k, v in sorted(weights.items(), key=lambda x: x[1], reverse=True):
+        print(f"{k:<3} {v * 100:5.1f}%")
 
-            equity, final_value, _, _, _ = run_backtest(data, ma_strategy)
-            sharpe = calculate_sharpe(equity)
+    vote_sharpe = calculate_sharpe(vote_equity)
+    council_sharpe = calculate_sharpe(council_equity)
 
-            results.append((s, l, final_value, sharpe))
-            top_results.append((s, l, final_value, sharpe))
+    # Buy & Hold
+    first_price = data["Close"].iloc[0]
+    last_price = data["Close"].iloc[-1]
 
-    print("\nMA Parameter Sweep Results\n")
+    bh_shares = 10000 / first_price
+    bh_final = bh_shares * last_price
 
-    results.sort(key=lambda x: x[3], reverse=True)
-    top_results.sort(key=lambda x: x[3], reverse=True)
-
-    for r in results:
-        short_ma = r[0]
-        long_ma = r[1]
-        final_val = r[2]
-        sharpe = r[3]
-
-        print(
-            f"MA {short_ma}/{long_ma} | "
-            f"Final: {round(final_val, 2):>10} | "
-            f"Sharpe: {round(sharpe, 2):>6}"
-        )
-
-    print("\nTop 10 Moving Average Strategies\n")
-
-    for r in top_results[:10]:
-        print(
-            f"MA {r[0]}/{r[1]} | "
-            f"Final: ${r[2]:,.2f} | "
-            f"Sharpe: {r[3]:.2f}"
-        )
-
-# Drawdowns
-ma_drawdown = calculate_drawdown(ma_equity)
-mr_drawdown = calculate_drawdown(mr_equity)
-adaptive_drawdown = calculate_drawdown(adaptive_equity)
-bh_drawdown = calculate_drawdown(bh_equity)
-ma_max_dd = max_drawdown(ma_drawdown)
-mr_max_dd = max_drawdown(mr_drawdown)
-adaptive_max_dd = max_drawdown(adaptive_drawdown)
-
-MAX_DRAWDOWN_LIMIT = 0.25
-
-if ma_max_dd > MAX_DRAWDOWN_LIMIT:
-    print("⚠ MA strategy halted due to drawdown")
-
-if mr_max_dd > MAX_DRAWDOWN_LIMIT:
-    print("⚠ MR strategy halted due to drawdown")
-
-if adaptive_max_dd > MAX_DRAWDOWN_LIMIT:
-    print("⚠ Adaptive strategy halted due to drawdown")
-bh_max_dd = max_drawdown(bh_drawdown)
-
-MAX_DRAWDOWN_LIMIT = 0.25
-
-if ma_max_dd > MAX_DRAWDOWN_LIMIT:
-    print("⚠ MA strategy halted due to drawdown")
-
-if mr_max_dd > MAX_DRAWDOWN_LIMIT:
-    print("⚠ MR strategy halted due to drawdown")
-
-if adaptive_max_dd > MAX_DRAWDOWN_LIMIT:
-    print("⚠ Adaptive strategy halted due to drawdown")
-
-ma_roll = rolling_sharpe(ma_equity)
-mr_roll = rolling_sharpe(mr_equity)
-ad_roll = rolling_sharpe(adaptive_equity)
-
-# Trade stats
-ma_wins, ma_losses, ma_wr, ma_avg = trade_statistics(ma_profits)
-mr_wins, mr_losses, mr_wr, mr_avg = trade_statistics(mr_profits)
-ad_wins, ad_losses, ad_wr, ad_avg = trade_statistics(ad_profits)
-ma_pf = profit_factor(ma_profits)
-mr_pf = profit_factor(mr_profits)
-ad_pf = profit_factor(ad_profits)
-
-print_strategy_performance(
-    ma_equity, mr_equity, adaptive_equity,
-    ma_final, mr_final, adaptive_final,
-    ma_sharpe, mr_sharpe, adaptive_sharpe,
-    ma_max_dd, mr_max_dd, adaptive_max_dd,
-    ma_profits, mr_profits, ad_profits,
-    vote_final, vote_sharpe,
-    council_final, council_sharpe,
-    bh_final, bh_sharpe, bh_max_dd,
-    ticker,
-    record_trade,
-    log_trade,
-    print_strategy_stats
-)
-
-print("\nMoving Average")
-print("Trades:", len(ma_profits))
-print("Win Rate:", round(ma_wr * 100, 1), "%")
-print("Avg Trade:", round(ma_avg, 2))
-print("Profit Factor:", round(ma_pf, 2))
-
-print("\nAdaptive")
-print("Trades:", len(ad_profits))
-print("Win Rate:", round(ad_wr * 100, 1), "%")
-print("Avg Trade:", round(ad_avg, 2))
-print("Profit Factor:", round(ad_pf, 2))
-
-print("\nBuy & Hold Final Value:", round(bh_final, 2))
-print("Buy & Hold Sharpe:", round(bh_sharpe, 2))
-print("Buy & Hold Max Drawdown:", round(bh_max_dd * 100, 2), "%")
-
-# print("\nTrade Statistics")
-
-print("\nMean Reversion")
-print("Trades:", len(mr_profits))
-print("Win Rate:", round(mr_wr * 100, 1), "%")
-print("Avg Trade:", round(mr_avg, 2))
-
-print("\nVoting Strategy")
-print("Trades:", len(vote_profits))
-
-vote_wins = sum(1 for p in vote_profits if p > 0)
-vote_losses = sum(1 for p in vote_profits if p <= 0)
-
-vote_wr = vote_wins / len(vote_profits) if vote_profits else 0
-vote_avg = sum(vote_profits) / len(vote_profits) if vote_profits else 0
-
-print("Win Rate:", round(vote_wr * 100, 1), "%")
-print("Avg Trade:", round(vote_avg, 2))
-print("Sharpe:", round(vote_sharpe, 2))
-
-print("\nStrategy Council")
-print("Trades:", len(council_profits))
-
-council_wins = sum(1 for p in council_profits if p > 0)
-council_wr = council_wins / len(council_profits) if council_profits else 0
-council_avg = sum(council_profits) / len(council_profits) if council_profits else 0
-
-print("Win Rate:", round(council_wr * 100, 1), "%")
-print("Avg Trade:", round(council_avg, 2))
-print("Sharpe:", round(council_sharpe, 2))
-
-generate_backtest_report(
-    ticker,
-    BOT_NAME,
-    data,
-    ma_equity,
-    mr_equity,
-    adaptive_equity,
-    bh_equity,
-    vote_equity,
-    council_equity,
-    ma_buys,
-    ma_sells,
-    mr_buys,
-    mr_sells,
-    ad_buys,
-    ad_sells,
-    ma_profits,
-    mr_profits,
-    ad_profits
-)
-
-# print("Displaying chart window...")
-
-# plt.show()
+    bh_equity = []
+    for i in range(30, len(data)):
+        price = data["Close"].iloc[i]
+        bh_equity.append(bh_shares * price)
+
+    bh_sharpe = calculate_sharpe(bh_equity)
+
+    strategy_results = {
+        "MA": {"final": ma_final, "sharpe": ma_sharpe},
+        "MR": {"final": mr_final, "sharpe": mr_sharpe},
+        "Adaptive": {"final": adaptive_final, "sharpe": adaptive_sharpe},
+        "Vote": {"final": vote_final, "sharpe": vote_sharpe},
+        "Council": {"final": council_final, "sharpe": council_sharpe},
+        "BuyHold": {"final": bh_final, "sharpe": bh_sharpe},
+        "Volatility": {"final": vol_final, "sharpe": vol_sharpe},
+    }
+
+    from leaderboard import print_leaderboard
+
+    print_leaderboard(strategy_results)
+
+    if args.sweep:
+
+        short_windows = range(5, 31, 5)
+        long_windows = range(20, 201, 20)
+
+        results = []
+        top_results = []
+
+        for s in short_windows:
+            for l in long_windows:
+
+                if s >= l:
+                    continue
+
+
+                def ma_strategy(data, short=s, long=l):
+                    return analyze_market(data, short, long)
+
+
+                equity, final_value, _, _, _ = run_backtest(data, ma_strategy)
+                sharpe = calculate_sharpe(equity)
+
+                results.append((s, l, final_value, sharpe))
+                top_results.append((s, l, final_value, sharpe))
+
+        print("\nMA Parameter Sweep Results\n")
+
+        results.sort(key=lambda x: x[3], reverse=True)
+        top_results.sort(key=lambda x: x[3], reverse=True)
+
+        for r in results:
+            short_ma = r[0]
+            long_ma = r[1]
+            final_val = r[2]
+            sharpe = r[3]
+
+            print(
+                f"MA {short_ma}/{long_ma} | "
+                f"Final: {round(final_val, 2):>10} | "
+                f"Sharpe: {round(sharpe, 2):>6}"
+            )
+
+        print("\nTop 10 Moving Average Strategies\n")
+
+        for r in top_results[:10]:
+            print(
+                f"MA {r[0]}/{r[1]} | "
+                f"Final: ${r[2]:,.2f} | "
+                f"Sharpe: {r[3]:.2f}"
+            )
+
+    # Drawdowns
+    ma_drawdown = calculate_drawdown(ma_equity)
+    mr_drawdown = calculate_drawdown(mr_equity)
+    adaptive_drawdown = calculate_drawdown(adaptive_equity)
+    bh_drawdown = calculate_drawdown(bh_equity)
+    ma_max_dd = max_drawdown(ma_drawdown)
+    mr_max_dd = max_drawdown(mr_drawdown)
+    adaptive_max_dd = max_drawdown(adaptive_drawdown)
+
+    MAX_DRAWDOWN_LIMIT = 0.25
+
+    if ma_max_dd > MAX_DRAWDOWN_LIMIT:
+        print("⚠ MA strategy halted due to drawdown")
+
+    if mr_max_dd > MAX_DRAWDOWN_LIMIT:
+        print("⚠ MR strategy halted due to drawdown")
+
+    if adaptive_max_dd > MAX_DRAWDOWN_LIMIT:
+        print("⚠ Adaptive strategy halted due to drawdown")
+    bh_max_dd = max_drawdown(bh_drawdown)
+
+    MAX_DRAWDOWN_LIMIT = 0.25
+
+    if ma_max_dd > MAX_DRAWDOWN_LIMIT:
+        print("⚠ MA strategy halted due to drawdown")
+
+    if mr_max_dd > MAX_DRAWDOWN_LIMIT:
+        print("⚠ MR strategy halted due to drawdown")
+
+    if adaptive_max_dd > MAX_DRAWDOWN_LIMIT:
+        print("⚠ Adaptive strategy halted due to drawdown")
+
+    ma_roll = rolling_sharpe(ma_equity)
+    mr_roll = rolling_sharpe(mr_equity)
+    ad_roll = rolling_sharpe(adaptive_equity)
+
+    # Trade stats
+    ma_wins, ma_losses, ma_wr, ma_avg = trade_statistics(ma_profits)
+    mr_wins, mr_losses, mr_wr, mr_avg = trade_statistics(mr_profits)
+    ad_wins, ad_losses, ad_wr, ad_avg = trade_statistics(ad_profits)
+    ma_pf = profit_factor(ma_profits)
+    mr_pf = profit_factor(mr_profits)
+    ad_pf = profit_factor(ad_profits)
+
+    print_strategy_performance(
+        ma_equity, mr_equity, adaptive_equity,
+        ma_final, mr_final, adaptive_final,
+        ma_sharpe, mr_sharpe, adaptive_sharpe,
+        ma_max_dd, mr_max_dd, adaptive_max_dd,
+        ma_profits, mr_profits, ad_profits,
+        vote_final, vote_sharpe,
+        council_final, council_sharpe,
+        bh_final, bh_sharpe, bh_max_dd,
+        ticker,
+        record_trade,
+        log_trade,
+        print_strategy_stats
+    )
+
+    print("\nMoving Average")
+    print("Trades:", len(ma_profits))
+    print("Win Rate:", round(ma_wr * 100, 1), "%")
+    print("Avg Trade:", round(ma_avg, 2))
+    print("Profit Factor:", round(ma_pf, 2))
+
+    print("\nAdaptive")
+    print("Trades:", len(ad_profits))
+    print("Win Rate:", round(ad_wr * 100, 1), "%")
+    print("Avg Trade:", round(ad_avg, 2))
+    print("Profit Factor:", round(ad_pf, 2))
+
+    print("\nBuy & Hold Final Value:", round(bh_final, 2))
+    print("Buy & Hold Sharpe:", round(bh_sharpe, 2))
+    print("Buy & Hold Max Drawdown:", round(bh_max_dd * 100, 2), "%")
+
+    # print("\nTrade Statistics")
+
+    print("\nMean Reversion")
+    print("Trades:", len(mr_profits))
+    print("Win Rate:", round(mr_wr * 100, 1), "%")
+    print("Avg Trade:", round(mr_avg, 2))
+
+    print("\nVoting Strategy")
+    print("Trades:", len(vote_profits))
+
+    vote_wins = sum(1 for p in vote_profits if p > 0)
+    vote_losses = sum(1 for p in vote_profits if p <= 0)
+
+    vote_wr = vote_wins / len(vote_profits) if vote_profits else 0
+    vote_avg = sum(vote_profits) / len(vote_profits) if vote_profits else 0
+
+    print("Win Rate:", round(vote_wr * 100, 1), "%")
+    print("Avg Trade:", round(vote_avg, 2))
+    print("Sharpe:", round(vote_sharpe, 2))
+
+    print("\nStrategy Council")
+    print("Trades:", len(council_profits))
+
+    council_wins = sum(1 for p in council_profits if p > 0)
+    council_wr = council_wins / len(council_profits) if council_profits else 0
+    council_avg = sum(council_profits) / len(council_profits) if council_profits else 0
+
+    print("Win Rate:", round(council_wr * 100, 1), "%")
+    print("Avg Trade:", round(council_avg, 2))
+    print("Sharpe:", round(council_sharpe, 2))
+
+    generate_backtest_report(
+        ticker,
+        BOT_NAME,
+        data,
+        ma_equity,
+        mr_equity,
+        adaptive_equity,
+        bh_equity,
+        vote_equity,
+        council_equity,
+        ma_buys,
+        ma_sells,
+        mr_buys,
+        mr_sells,
+        ad_buys,
+        ad_sells,
+        ma_profits,
+        mr_profits,
+        ad_profits
+    )
+
+    # print("Displaying chart window...")
+
+    # plt.show()
