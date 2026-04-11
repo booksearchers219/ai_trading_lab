@@ -30,7 +30,7 @@ STOP_LOSS_PCT = 0.10
 TRAILING_STOP_PCT = 0.12
 SIGNAL_CONFIRM_CYCLES = 1
 MIN_VOLATILITY = 0.001
-MAX_NEW_TRADES_PER_CYCLE = 10
+MAX_NEW_TRADES_PER_CYCLE = 20
 
 SCAN_UNIVERSE = [
 
@@ -863,7 +863,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
             combined_signal = "HOLD"
             vote_strength = 0
 
-            if buy_votes >= 0.5:
+            if buy_votes >= 0.3:
                 combined_signal = "BUY"
                 vote_strength = buy_votes
 
@@ -890,7 +890,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
             if combined_signal == "BUY":
 
                 # Only block EXTREME conditions, not normal dips
-                if recent_return < -0.10:
+                if recent_return < -0.20:
                     combined_signal = "HOLD"
 
                 # Allow MR buys in sideways even if market is weak
@@ -900,7 +900,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
             ma50 = data["Close"].rolling(50).mean().iloc[-1]
 
             if combined_signal == "BUY" and regime == "TRENDING":
-                if data["Close"].iloc[-1] < ma50 and recent_return < -0.08:
+                if data["Close"].iloc[-1] < ma50 and recent_return < -0.15:
                     combined_signal = "HOLD"
 
             if sell_votes >= 2:
@@ -1265,6 +1265,16 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
         if not cooling:
             print("None")
 
+        # 🚀 FORCE DEPLOYMENT IF TOO MUCH CASH
+        positions_value = portfolio.total_value(prices) - portfolio.cash
+        exposure = positions_value / portfolio.total_value(prices)
+
+        if exposure < 0.4 and confirmed_signals:
+            print("⚠️ UNDEREXPOSED — FORCING EXTRA TRADES")
+
+            # double the signal list temporarily
+            confirmed_signals = confirmed_signals + confirmed_signals[:10]
+
         for strat, signal, ticker, vote_strength, *_ in confirmed_signals:
 
             if not trade_allowed:
@@ -1366,7 +1376,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
             vol_adjustment = max(0.75, min(2.5, 0.03 / volatility))
 
             # 🚀 AGGRESSIVE CAPITAL DEPLOYMENT
-            deployment_multiplier = 1.5
+            deployment_multiplier = 2.5
 
             # if underinvested, push harder
             positions_value = portfolio_value - portfolio.cash
