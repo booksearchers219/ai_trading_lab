@@ -23,7 +23,7 @@ from equity_logger import log_equity
 from trade_logger import log_trade
 
 MAX_POSITIONS = 25
-MAX_RISK_PER_TRADE = 0.08
+MAX_RISK_PER_TRADE = 0.15
 MAX_TICKER_ALLOCATION = 0.20
 MAX_PORTFOLIO_EXPOSURE = 0.95
 STOP_LOSS_PCT = 0.10
@@ -1363,13 +1363,37 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
             volatility = returns.std()
             volatility = max(0.005, min(volatility, 0.10))
 
-            vol_adjustment = max(0.5, min(2.0, 0.02 / volatility))
+            vol_adjustment = max(0.75, min(2.5, 0.03 / volatility))
 
-            risk_amount = portfolio_value * MAX_RISK_PER_TRADE * confidence * risk_multiplier
+            # 🚀 AGGRESSIVE CAPITAL DEPLOYMENT
+            deployment_multiplier = 1.5
+
+            # if underinvested, push harder
+            positions_value = portfolio_value - portfolio.cash
+            exposure = positions_value / portfolio_value if portfolio_value > 0 else 0
+
+            if exposure < 0.5:
+                deployment_multiplier = 2.5
+            elif exposure < 0.7:
+                deployment_multiplier = 2.0
+
+            risk_amount = (
+                    portfolio_value
+                    * MAX_RISK_PER_TRADE
+                    * confidence
+                    * risk_multiplier
+                    * deployment_multiplier
+            )
 
             adjusted_risk = risk_amount * vol_adjustment
 
             shares = max(0.001, adjusted_risk / price)
+
+            # 🚀 minimum deployment floor
+            min_trade_value = portfolio_value * 0.03  # 3% minimum
+
+            if shares * price < min_trade_value:
+                shares = min_trade_value / price
 
             print("DEBUG position:", ticker, "risk", adjusted_risk, "price", price, "shares", shares)
 

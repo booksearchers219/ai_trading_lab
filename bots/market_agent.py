@@ -671,7 +671,7 @@ if __name__ == "__main__":
             print(f"Sleeping {sleep_seconds // 60} minutes...\n")
             time.sleep(sleep_seconds)
 
-            
+
 
     elif args.live:
 

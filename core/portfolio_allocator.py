@@ -1,7 +1,11 @@
 def allocate_by_sharpe(strategy_sharpes):
 
-    # remove negative sharpes
-    filtered = {k: max(v, 0) for k, v in strategy_sharpes.items()}
+    # ensure every strategy gets at least a small weight
+    MIN_WEIGHT = 0.05
+    filtered = {
+        k: max(v, MIN_WEIGHT)
+        for k, v in strategy_sharpes.items()
+    }
 
     total = sum(filtered.values())
 
@@ -14,5 +18,17 @@ def allocate_by_sharpe(strategy_sharpes):
 
     for strat, sharpe in filtered.items():
         weights[strat] = sharpe / total
+
+    # 🔥 OPTIONAL BOOST (aggressive mode)
+    BOOST_FACTOR = 1.2
+
+    weights = {
+        k: min(v * BOOST_FACTOR, 1.0)
+        for k, v in weights.items()
+    }
+
+    # renormalize after boost
+    total = sum(weights.values())
+    weights = {k: v / total for k, v in weights.items()}
 
     return weights
