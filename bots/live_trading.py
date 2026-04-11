@@ -24,7 +24,7 @@ from trade_logger import log_trade
 
 MAX_POSITIONS = 25
 MAX_RISK_PER_TRADE = 0.15
-MAX_TICKER_ALLOCATION = 0.20
+MAX_TICKER_ALLOCATION = 0.40
 MAX_PORTFOLIO_EXPOSURE = 0.95
 STOP_LOSS_PCT = 0.10
 TRAILING_STOP_PCT = 0.12
@@ -1269,6 +1269,12 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
         positions_value = portfolio.total_value(prices) - portfolio.cash
         exposure = positions_value / portfolio.total_value(prices)
 
+        force_mode = False
+
+        if exposure < 0.6:
+            print("⚠️ UNDEREXPOSED — FORCE MODE ACTIVE")
+            force_mode = True
+
         if exposure < 0.4 and confirmed_signals:
             print("⚠️ UNDEREXPOSED — FORCING EXTRA TRADES")
 
@@ -1353,7 +1359,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
 
             max_allowed = portfolio_value * MAX_TICKER_ALLOCATION
 
-            confidence = min(1.0, vote_strength / 3)
+            confidence = min(1.0, vote_strength / 2)
 
             if market_regime == "SIDEWAYS":
                 risk_multiplier = 0.7
@@ -1399,8 +1405,12 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
 
             shares = max(0.001, adjusted_risk / price)
 
+            # 🚀 FORCE MODE: increase size aggressively
+            if force_mode:
+                shares *= 2.0
+
             # 🚀 minimum deployment floor
-            min_trade_value = portfolio_value * 0.03  # 3% minimum
+            min_trade_value = portfolio_value * (0.05 if force_mode else 0.03)  # 3% minimum
 
             if shares * price < min_trade_value:
                 shares = min_trade_value / price
@@ -1430,7 +1440,6 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
             if (
                     signal == "BUY"
                     and shares > 0
-                    and held == 0
                     and current_value < max_allowed
                     and (
                     open_positions < max_positions
