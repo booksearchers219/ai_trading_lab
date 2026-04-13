@@ -244,14 +244,24 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
 
     state = load_state(BOT_NAME)
 
-    if state:
+    reset_mode = "--reset" in sys.argv
+
+    if state and not reset_mode:
         print("Resuming previous session...")
         portfolio = Portfolio(state["cash"])
         portfolio.positions = state["positions"]
         portfolio.entry_prices = state.get("entry_prices", {})
+
+        cycle = state.get("cycle", 0)
+
     else:
-        print("Starting new session...")
+        if reset_mode:
+            print("RESET MODE: starting fresh session...")
+        else:
+            print("Starting new session...")
+
         portfolio = Portfolio(30000)
+
 
     adaptive_state = {}
 
@@ -1733,7 +1743,8 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
         save_state({
             "cash": portfolio.cash,
             "positions": portfolio.positions,
-            "entry_prices": portfolio.entry_prices
+            "entry_prices": portfolio.entry_prices,
+            "cycle": cycle
         }, BOT_NAME)
 
         # -----------------------------
