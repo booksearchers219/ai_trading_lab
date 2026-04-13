@@ -1788,7 +1788,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
         if crypto_universe:
             sleep_seconds = 600  # crypto → 10 minutes
         else:
-            sleep_seconds = 60  # equities → 1 minute
+            sleep_seconds = 360  # equities → 1 minute
 
         next_run = datetime.now() + timedelta(seconds=sleep_seconds)
 
