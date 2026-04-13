@@ -1719,6 +1719,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
         print(f"Time: {cycle_time}")
         print(f"Portfolio Value: ${portfolio_value:,.2f}")
         print(f"Open Positions: {len(portfolio.positions)}")
+        print(f"Available Cash: ${portfolio.cash:,.2f}")
         print(f"Confirmed Signals: {len(confirmed_signals)}")
 
         filename = generate_equity_chart(BOT_NAME)
