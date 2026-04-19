@@ -261,6 +261,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
             print("Starting new session...")
 
         portfolio = Portfolio(30000)
+        cycle = 0
 
 
     adaptive_state = {}
@@ -277,7 +278,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
 
     data_cache = {}
 
-    cycle = 0
+
 
     while True:
 
