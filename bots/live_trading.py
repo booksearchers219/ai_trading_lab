@@ -227,9 +227,9 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
         max_positions = MAX_POSITIONS
 
     strategy_equity = {
-        "MA": 30000,
-        "MR": 30000,
-        "AD": 30000
+        "MA": 26666,
+        "MR": 26666,
+        "AD": 26666
     }
 
     regime_weights = {
@@ -260,7 +260,7 @@ def run_live_simulation(universe=None, crypto_universe=None, BOT_NAME="default_b
         else:
             print("Starting new session...")
 
-        portfolio = Portfolio(30000)
+        portfolio = Portfolio(80000)
         cycle = 0
 
 

@@ -21,7 +21,7 @@ def load_state(BOT_NAME="default_bot"):
     if not os.path.exists(state_file):
 
         return {
-            "cash": 30000,
+            "cash": 80000,
             "positions": {},
             "history": []
         }
